@@ -13,8 +13,12 @@ and the applicable ADRs before changing it.
 - Deterministic PostgreSQL migrations for the `core` and `shell` schemas
 - Docker Compose services for PostgreSQL 16, migration execution, and the API
 
-The first Core business migration provides partners, chart of accounts, IVA
-definitions, products, document headers, and document items.
+The Core business migrations provide partners, chart of accounts, IVA
+definitions, products, document headers and items, plus protected double-entry
+journal entries and lines. Journal entries are created as `DRAFT`, submitted
+for approval, and posted only when their transaction- and functional-currency
+debits equal credits. PostgreSQL triggers make posted entries and their lines
+immutable.
 
 ## Local startup
 

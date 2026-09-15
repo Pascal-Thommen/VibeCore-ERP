@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.crud.accounting_crud import JournalEntryNotEditableError, JournalEntryStateError
 from app.crud.core_crud import (
     DocumentNotEditableError,
     PartnerDirectionError,
@@ -28,7 +29,9 @@ async def raise_write_error(session: AsyncSession, exc: Exception) -> NoReturn:
             status_code=status.HTTP_409_CONFLICT,
             detail="operation conflicts with an existing or referenced Core record",
         ) from exc
-    if isinstance(exc, DocumentNotEditableError):
+    if isinstance(
+        exc, (DocumentNotEditableError, JournalEntryNotEditableError, JournalEntryStateError)
+    ):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if isinstance(exc, RelatedResourceNotFoundError):
         raise HTTPException(
