@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Editor lock and swap files
+*.swp
+.~lock.*#
+
 # C extensions
 *.so
 
@@ -149,6 +153,7 @@ activemq-data/
 
 # Environments
 .env
+.secrets/
 .envrc
 .venv
 env/
