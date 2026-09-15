@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import app.models  # noqa: F401  # Register protected Core models with Base.metadata.
 from app.core.config import settings
 from app.db.base import Base
 
@@ -38,7 +39,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, include_schemas=True)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

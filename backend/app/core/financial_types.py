@@ -7,3 +7,4 @@ from sqlalchemy import Numeric
 MONEY_NUMERIC = Numeric(20, 6)
 QUANTITY_NUMERIC = Numeric(20, 6)
 EXCHANGE_RATE_NUMERIC = Numeric(24, 12)
+TAX_RATE_NUMERIC = Numeric(5, 2)

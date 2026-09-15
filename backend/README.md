@@ -10,11 +10,11 @@ and the applicable ADRs before changing it.
 - SQLAlchemy 2.x synchronous session boundary using PostgreSQL and `psycopg`
 - Pydantic Settings configuration, including file-based Docker Secrets
 - Alembic migration environment
-- Initial PostgreSQL migration that creates the empty `core` and `shell` schemas
+- Deterministic PostgreSQL migrations for the `core` and `shell` schemas
 - Docker Compose services for PostgreSQL 16, migration execution, and the API
 
-No financial entities exist yet. The first domain migration will introduce the
-canonical Finance Core model defined in ADR 0002.
+The first Core business migration provides partners, chart of accounts, IVA
+definitions, products, document headers, and document items.
 
 ## Local startup
 
