@@ -18,7 +18,9 @@ definitions, products, document headers and items, plus protected double-entry
 journal entries and lines. Journal entries are created as `DRAFT`, submitted
 for approval, and posted only when their transaction- and functional-currency
 debits equal credits. PostgreSQL triggers make posted entries and their lines
-immutable.
+immutable. Posting also records an immutable `core.outbox_event` in the same
+database transaction, so a committed financial posting cannot lose its required
+integration event.
 
 ## Local startup
 

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.core_crud import RelatedResourceNotFoundError, _money
+from app.crud.outbox_crud import enqueue_journal_entry_posted_event
 from app.models import Account, Document, JournalEntry, JournalLine
 from app.schemas.accounting_schemas import (
     JournalEntryCreate,
@@ -310,5 +311,8 @@ async def post_journal_entry(
     journal_entry.posted_by_actor = data.approved_by_actor
     journal_entry.posted_by_role = data.approved_by_role
     journal_entry.status = "POSTED"
+    # Do not commit between the financial transition and this event.  The one
+    # commit below either persists both records or rolls back both records.
+    await enqueue_journal_entry_posted_event(session, journal_entry)
     await session.commit()
     return await get_journal_entry(session, journal_entry_id)

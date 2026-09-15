@@ -115,6 +115,7 @@ class CoreSchema(BaseModel):
         extra="forbid",
         from_attributes=True,
         populate_by_name=True,
+        regex_engine="python-re",
         validate_assignment=True,
     )
 

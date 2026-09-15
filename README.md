@@ -195,6 +195,16 @@ Use `meta` for interoperable technical or integration metadata. Use
 they do not recognize. This keeps contracts forward-compatible without breaking
 older clients.
 
+### Flexible Core-table extensions
+
+Flexible Core tables—such as `partner`, `product`, and `document` when present
+in the canonical model—provide a JSONB extension column, for example `meta` or
+`custom_data`. It holds future-proof, customer-specific attributes without
+altering the protected `core` schema. These extension objects complement rather
+than replace canonical fiscal and financial fields; a new protected field still
+requires architecture-owner approval and a reviewed deterministic Alembic
+migration.
+
 ### State, traceability, and Model Context Protocol (MCP)
 
 - Record the actor responsible for every financial action.

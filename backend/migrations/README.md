@@ -13,3 +13,9 @@ and tax rate.
 PostgreSQL constraint triggers to reject a posted entry unless its transaction-
 and functional-currency debits equal credits, and database triggers to make
 posted headers and lines immutable.
+
+`20260915_0004` creates `core.outbox_event` for PostgreSQL transactional
+outbox delivery. It stores immutable event identity, type/version, aggregate,
+correlation, idempotency, and JSONB payload facts alongside publisher-owned
+delivery state. A partial index supports pending-event retrieval and a database
+trigger protects immutable event facts and valid delivery-state transitions.
