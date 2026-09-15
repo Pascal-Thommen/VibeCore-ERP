@@ -25,19 +25,21 @@ VibeCore is designed for micro, small, and medium-sized enterprises (MSMEs), esp
 Architecture at a glance
 
 flowchart LR
-  U[Client-specific UI / Custom Shell] -->|REST / JSON & MCP| C
-  C[Immutable Finance Core\nFastAPI + PostgreSQL]
-  C -->|real-time events / webhooks| A1[SIFEN adapter\nCore-bound / Compliance]
-  S[Shell workspace\nclient business logic] -->|events / webhooks| A2[WhatsApp adapter\nShell-bound / Workflow]
-  A1 -->|REST / JSON| C
-  A2 -->|REST / JSON| C
+    U[Client-specific UI\nFlexible Shell] -->|REST / JSON| C
+    C[Immutable Finance Core\nFastAPI + PostgreSQL]
+    C -->|real-time events / webhooks| A1[SIFEN adapter\nCore-bound]
+    S[Shell workspace\nshell schema] -->|operational events| A2[WhatsApp adapter\nShell-bound]
+    C -->|real-time events / webhooks| A3[Banking adapter\nCore-bound]
+    A1 -->|REST / JSON| C
+    A2 -->|REST / JSON| S
+    A3 -->|REST / JSON| C
 
-  subgraph PostgreSQL
-    C1[core schema\nprotected financial truth]
-    S1[shell schema\nclient workspace]
-  end
-  C --- C1
-  S --- S1
+    subgraph PostgreSQL
+        C1[core schema\nprotected financial truth]
+        S1[shell schema\nclient workspace]
+    end
+    C --- C1
+    C --- S1
 
 
 Layer
@@ -46,29 +48,29 @@ Responsibility
 
 Freedom to change
 
-Finance Core (/backend/core)
+Finance Core (/backend)
 
 Accounting, items, taxes, transaction integrity
 
-Protected (Immutable)
+Protected
 
 Shell workspace (shell schema)
 
-Client-specific processes, data, and business logic
+Client-specific processes, data, and UI
 
-Extensible / Fully customizable
+Extensible
 
-Adapters (/adapters)
+Adapters
 
 External services and provider-specific logic
 
 Isolated and replaceable
 
-Client UI / Shell (/frontend or custom)
+Vibe Shell (/frontend)
 
-Task-focused client interface (Reference implementation or custom stack)
+Task-focused client interface
 
-Completely open / Choice of stack
+Fully open / Choice of stack
 
 The two-tier standard
 
@@ -76,7 +78,7 @@ VibeCore ERP — the global standard
 
 The global architecture is deliberately portable:
 
-Headless by design. The Finance Core owns no user interface and interacts solely via REST/JSON APIs and MCP endpoints.
+Headless by design. The Finance Core owns no user interface.
 
 Process proximity. Client workflows determine the Shell experience; standard ERP screens do not.
 
@@ -136,29 +138,19 @@ The shell PostgreSQL schema is where a client’s actual business lives.
 
 It may contain client-specific tables, views, and workflows — for example scale readings for a precious-metals buyer, delivery routes, service orders, or shop-floor data. Shell tables may reference Core primary keys through foreign keys, but must not redefine or bypass financial rules.
 
-Deterministic schema changes (using tools like Alembic) ensure that client workspaces remain reproducible and safe to apply.
+Every Shell schema change requires a deterministic Alembic migration. Migrations must be reproducible, reviewed, and safe to apply in a clean environment.
 
-Layer B — Adapters (Core-Bound vs. Shell-Bound)
+Layer B — Adapters (Core-bound vs. Shell-bound)
 
 Adapters connect VibeCore to the outside world. They run as independent Dockerized microservices and are free to use the language and runtime that best suits the provider: Node.js, Go, Python, or another appropriate stack.
 
-Depending on their function, adapters attach to different architectural boundaries:
+Core-bound adapters (e.g., SIFEN, Banking) attach directly to the Finance Core to handle compliance, invoices, and accounting triggers.
 
-Core-Bound Adapters (Compliance & Financial Truth):
-
-Services like SIFEN (e-Kuatia) attach directly to the Finance Core because electronic invoicing and tax validations are tied directly to financial transaction state changes.
-
-They trigger via real-time Core events or webhooks to ensure compliance without human delay.
-
-Shell-Bound Adapters (Operational Workflows & Messaging):
-
-Services like WhatsApp notifications, customer portals, or field-service tracking attach to the Shell or operate as independent operational microservices.
-
-They drive customer interaction and business workflows without touching the protected accounting core.
+Shell-bound adapters (e.g., WhatsApp, operational notifications, IoT scale feeds) attach to the client's operational Shell schema and workflows.
 
 Adapter contract
 
-Communicate with the Core and Shell exclusively through versioned JSON over REST APIs.
+Communicate with the Core or Shell exclusively through versioned JSON over REST APIs.
 
 Never connect directly to PostgreSQL. Database isolation is absolute.
 
@@ -166,49 +158,25 @@ Expose an openapi.json specification.
 
 Include an AI-readable contract at .ai/adapter_schema.md.
 
-Include a /blueprints directory when the adapter needs reusable user-interface components or reference layouts.
+Include a /blueprints directory when the adapter needs reusable user-interface components, such as an OCR camera flow.
 
 Treat provider credentials, signing keys, and secrets as runtime configuration — never commit them.
 
 Real-time first, recovery second
 
-Critical business actions must use real-time events or webhooks. For example, a POS checkout that needs a SIFEN e-invoice triggers the SIFEN adapter immediately.
+Critical business actions must use real-time Core-to-Adapter events or webhooks. For example, a POS checkout that needs a SIFEN e-invoice triggers the SIFEN adapter immediately.
 
-An adapter may poll APIs only for recovery, such as reconciling missed work after startup. Polling is not a substitute for a real-time business workflow.
+An adapter may poll the Core API only for recovery, such as reconciling missed work after startup. Polling is not a substitute for a real-time business workflow.
 
-Layer C — Client Interfaces & Vibe Shell
+Layer C — Vibe Shell frontend
 
-The client interface layer is completely open. While the reference implementation provides a Vibe Shell built with modern frameworks and Tailwind CSS, teams are fully free to choose any frontend stack, mobile wrapper, or rapid prototyping tool (such as Streamlit) that suits their operational needs.
+The Vibe Shell is the client-facing layer. While Vue/React with Tailwind CSS is a common reference stack for web interfaces, the architecture is fully open: you can build your shell with any framework or stack (e.g., Streamlit, custom Python frontends, or native apps) that fits your workflow.
 
-The interface owns workflow design, visual identity, and task-specific interaction. It should make the client’s daily work feel native, while the Finance Core remains invisible and dependable underneath.
+The Shell owns workflow design, visual identity, and task-specific interaction. It should make the client’s daily work feel native, while the Finance Core remains invisible and dependable underneath.
 
-For complex integrations, adapter repositories may ship generic frontend blueprints in /blueprints. AI agents can copy or adapt these components to fit whatever frontend stack is chosen.
+For complex integrations, adapter repositories should ship generic frontend blueprints in /blueprints. AI agents can copy these components into the Shell and tailor their styling and placement without reimplementing the integration contract.
 
-API and MCP (Model Context Protocol) Specifications
-
-VibeCore ERP natively bridges programmatic access through standard REST endpoints and AI context protocols.
-
-1. REST / JSON API Standards
-
-Versioning: All routes are versioned under /api/v1/....
-
-Format: Strict JSON request and response bodies.
-
-Authentication: Bearer token authentication mapped to specific actor identities (HUMAN_*, SYSTEM_*, AI_AGENT).
-
-Idempotency: Mutating requests require idempotency keys to prevent duplicate journal entries during network failures.
-
-2. Model Context Protocol (MCP) Integration
-
-To enable AI development assistants (like Claude Desktop, Cursor, or custom agents) to safely inspect models, draft entries, and query documentation without direct database access, the Finance Core and adapters expose standard MCP servers:
-
-Tools: Exposes approved operations such as draft_journal_entry, validate_ruc, or calculate_iva_split.
-
-Resources: Provides read-only context schemas (core://schema/accounts, adapter://sifen/spec).
-
-Prompts: Standardized prompt templates for guiding AI agents through compliant transaction drafting under Paraguayan tax laws.
-
-Data and API conventions
+Data, API, and MCP conventions
 
 Design for the next unknown requirement
 
@@ -224,7 +192,7 @@ Every JSON payload exchanged among the Core, Shell, and Adapters must provide an
 
 Use meta for interoperable technical or integration metadata. Use custom_data for domain-specific extensions. Consumers must tolerate fields they do not recognize. This keeps contracts forward-compatible without breaking older clients.
 
-State and traceability
+State, Traceability, and Model Context Protocol (MCP)
 
 Record the actor responsible for every financial action.
 
@@ -234,21 +202,23 @@ Model AI-originated financial work as DRAFT until human approval.
 
 Prefer explicit, idempotent API operations for event retries and recovery.
 
-Repository conventions (Reference Layout)
+MCP Integration: AI developer agents interact with the system via Model Context Protocol (MCP) servers exposing safe tools and resources, allowing structured querying of endpoints and generation of shell components while preserving immutable core barriers.
 
-Depending on your project structure, modules can be organized flexibly. A common reference layout is:
+Repository conventions
+
+As modules are added, follow this structure:
 
 .
-├── backend/                # FastAPI Finance Core and Shell services
+├── backend/                 # FastAPI Finance Core and Shell services
 │   ├── core/                # Protected financial domain
 │   └── shell/               # Client-specific workspace domain
-├── frontend/                # Optional reference Vibe Shell (or custom stack)
+├── frontend/                # Flexible Vibe Shell (Choice of stack)
 ├── adapters/                # Isolated integration services (Core-bound & Shell-bound)
 │   └── <adapter>/
 │       ├── .ai/adapter_schema.md
-│       ├── blueprints/      # Optional reusable UI components/blueprints
+│       ├── blueprints/      # Optional reusable UI components
 │       └── openapi.json
-├── migrations/              # Deterministic database migrations
+├── migrations/              # Deterministic Alembic migrations
 └── docs/                    # Architecture decisions and operating guides
 
 
@@ -266,15 +236,11 @@ Finance Core
 
 Capture a client-specific operational process
 
-Shell schema + Chosen UI Shell
+Shell schema + Vibe Shell
 
-Connect a compliance/tax service (e.g., SIFEN)
+Connect a third-party service
 
-Core-Bound Adapter
-
-Connect an operational/messaging service (e.g., WhatsApp)
-
-Shell-Bound Adapter
+Core-bound or Shell-bound Adapter
 
 Change a financial record proposed by AI
 
@@ -290,13 +256,13 @@ Do not replace real-time critical workflows with polling.
 
 Do not finalize AI-created financial work without a human approval action.
 
-Maintain deterministic migrations for data-model changes.
+Do generate deterministic Alembic migrations for Shell data-model changes.
 
 Do maintain API specifications and .ai/adapter_schema.md for every adapter.
 
 Status
 
-VibeCore ERP establishes a flexible, composable foundation for bespoke enterprise applications. The architecture protects financial truth while allowing absolute freedom in how operational workflows and user interfaces are built.
+VibeCore ERP is establishing the reusable foundation and contracts for future modules. The architecture is the product boundary: every implementation should make it easier to reuse the core, replace an integration, and shape the UI around a real business.
 
 License
 
