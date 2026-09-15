@@ -1,7 +1,13 @@
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from functools import lru_cache
 
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
@@ -20,10 +26,38 @@ def get_engine() -> Engine:
 
 @lru_cache
 def get_session_factory() -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False
+    )
 
 
 def get_session() -> Generator[Session, None, None]:
     """Provide one transaction-capable SQLAlchemy session per request."""
     with get_session_factory()() as session:
+        yield session
+
+
+@lru_cache
+def get_async_engine() -> AsyncEngine:
+    """Create the async SQLAlchemy 2.0 engine used by Core API operations."""
+    return create_async_engine(
+        settings.sqlalchemy_database_url,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=5,
+    )
+
+
+@lru_cache
+def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(
+        bind=get_async_engine(),
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """Provide one async transaction-capable session for a Core API request."""
+    async with get_async_session_factory()() as session:
         yield session
