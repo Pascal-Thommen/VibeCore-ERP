@@ -85,6 +85,9 @@ VibeCore-PY applies the global standard to Paraguay. Implementations in this con
 - Support **Marangatú** export formats, including **RG 90** requirements.
 - Model the three IVA treatments for every applicable financial transaction:
   **exempt, 5%, and 10%**.
+- Build complex tax forms—such as IRE Form 500/501—as external localization
+  services or modules. They query balances through the authenticated Core API;
+  they are not Core code and never access PostgreSQL directly.
 
 > Compliance is a product requirement, not an adapter detail. Local tax and
 > e-invoicing rules must be independently reviewed and kept current before
@@ -95,6 +98,12 @@ VibeCore-PY applies the global standard to Paraguay. Implementations in this con
 The Finance Core is one monolithic service and database boundary, chosen intentionally for ACID-safe financial transactions.
 
 **Required stack:** Python, FastAPI, PostgreSQL.
+
+**Hard one-way boundary:** The Core must **never** read from the Shell or depend
+on it. The Core owns financial asset values; the Shell may own operational asset
+tracking, such as locations, condition, or scans. Shell workflows can reference
+Core records, but operational requirements must never become a dependency of
+financial truth.
 
 The `core` PostgreSQL schema is limited to the durable financial domain:
 
@@ -159,6 +168,12 @@ SIFEN e-invoice triggers the SIFEN adapter immediately.
 An adapter may poll the relevant API only for recovery, such as reconciling
 missed work after startup. Polling is **not** a substitute for a real-time
 business workflow.
+
+### VibeCore Python SDK
+
+The `vibecore-sdk` gives AI agents and adapters a typed Python interface to the
+authenticated Core API. It is the preferred Python integration boundary for
+Core operations and never provides database access.
 
 ## Layer C — Flexible Vibe Shell frontend
 
@@ -225,6 +240,8 @@ As modules are added, follow this structure:
 ├── backend/                 # FastAPI Finance Core and Shell services
 │   ├── core/                # Protected financial domain
 │   └── shell/               # Client-specific workspace domain
+├── sdk/                     # vibecore-sdk: typed Python client for the Core API
+│   └── vibecore/
 ├── frontend/                # Flexible Vibe Shell (choice of stack)
 ├── adapters/                # Isolated Core-bound and Shell-bound services
 │   └── <adapter>/
