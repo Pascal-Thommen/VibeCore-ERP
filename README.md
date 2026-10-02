@@ -2,9 +2,11 @@
 
 > **A composable, AI-first ERP foundation for SMEs — built around the way a business actually works.**
 
-VibeCore ERP is the architectural standard behind fast, durable, client-specific ERP systems. It separates the financial truth of a business from the interfaces, automations, and integrations built around it.
+VibeCore ERP is an architectural framework designed for vibe-coding custom, company-specific ERP systems. It provides an unbending, compliant financial and tax core while leaving all business workflows, approval policies, and operational processes to be custom vibe-coded inside each company's individual `shell` layer.
 
-Instead of repeatedly rebuilding generic CRUD applications, teams define dependable data models and workflows once. AI agents then assemble the client-specific shell and integrations around a protected accounting core.
+Instead of repeatedly rebuilding generic CRUD applications or forcing companies into rigid standard ERP workflows, VibeCore establishes a clear architectural separation:
+- **Uncompromising Core (Finance, Tax, Outbox, Adapters):** Strictly workflow-agnostic. Enforces financial invariants (balanced debit/credit, immutability of posted transactions, exact currency precision) and regulatory compliance.
+- **100% Freedom in the Shell (Vibe-coded processes):** Complete freedom to vibe-code bespoke business workflows, operational forms, and custom approval policies (single-approver, multi-approver, or automated) that reflect how each business actually operates.
 
 **Core principle:** the business process shapes the software — never the other way around.
 
@@ -16,14 +18,16 @@ Instead of repeatedly rebuilding generic CRUD applications, teams define dependa
 Traditional ERPs force every company into the same screens, modules, and processes. VibeCore takes the opposite approach:
 
 - **Finance stays reliable.** Double-entry accounting, tax logic, and financial
-  integrity live in one protected core.
-- **The client experience stays flexible.** Each business gets a shell that
-  matches its real operations: a scale at a gold buyer, a counter at a store,
+  integrity live in one protected, workflow-agnostic core.
+- **The client experience stays flexible.** 100% freedom in the shell: each business gets
+  a shell that matches its real operations: a scale at a gold buyer, a counter at a store,
   or a mobile workflow in the field.
 - **Integrations stay replaceable.** WhatsApp, e-invoicing, banking, OCR, and
   future services run outside the core as isolated adapters.
-- **AI accelerates delivery without gaining financial authority.** AI can create
-  workflows and draft transactions; a human approves financial execution.
+- **Vibe-coded workflows with custom governance.** AI agents vibe-code business processes
+  and approval policies directly into the shell layer. Whether a company requires single-approver
+  sign-off, four-eyes validation, or automated autonomous processing, the business dictates
+  the policy in the shell while the Core guarantees accounting and tax truth.
 
 VibeCore is designed for micro, small, and medium-sized enterprises (MSMEs), especially teams that need bespoke operational software without bespoke financial foundations every time.
 
@@ -114,16 +118,14 @@ The `core` PostgreSQL schema is limited to the durable financial domain:
 
 ### Core invariants
 
-1. **AI agents must not modify the `core` schema.**
-2. Financial records must preserve balanced, auditable double-entry semantics.
-3. Every financial action records an `actor`, such as `HUMAN_CARLOS`,
-   `SYSTEM_CRON`, or `AI_AGENT`.
-4. A transaction drafted or initiated by AI remains `DRAFT` until a human
-   approves it through the Shell.
-5. Core changes require explicit architecture-owner approval and a reviewed
-   migration path.
+1. **The Core is strictly workflow-agnostic.** Operational business processes, approval chains, and workflow state machines belong exclusively in the Shell.
+2. **AI agents must not modify the `core` schema** without explicit architecture-owner approval and a reviewed migration path.
+3. Financial records must preserve balanced, auditable double-entry semantics.
+4. Posted financial transactions are immutable; adjustments are made strictly via balanced reversing entries.
+5. All monetary calculations and exchange rates must use exact `NUMERIC` types (never floating-point).
+6. Every financial action records an `actor`, such as `HUMAN_CARLOS`, `SYSTEM_CRON`, or `AI_AGENT`.
 
-The Core is intentionally small. It should know financial truth, not the peculiarities of an individual client’s operational workflow.
+The Core is intentionally small and workflow-agnostic. It guarantees financial and tax invariants, not the peculiarities or approval policies of an individual client’s operational workflow.
 
 ## The Shell workspace
 
@@ -223,8 +225,8 @@ migration.
 ### State, traceability, and Model Context Protocol (MCP)
 
 - Record the actor responsible for every financial action.
-- Preserve approval history and audit context.
-- Model AI-originated financial work as `DRAFT` until human approval.
+- Preserve audit context and operational history in the Shell.
+- Keep the Core workflow-agnostic; implement approval policies (human, multi-approver, or automated) in the Shell.
 - Prefer explicit, idempotent API operations for event retries and recovery.
 - **MCP integration:** AI developer agents interact through Model Context
   Protocol (MCP) servers that expose safe tools and resources. MCP servers use
@@ -259,16 +261,17 @@ Before implementing a feature, identify its layer.
 | If you need to… | Build it in… |
 | --- | --- |
 | Post a journal entry, calculate tax, or enforce accounting rules | Finance Core |
-| Capture a client-specific operational process | Shell schema + Vibe Shell |
+| Capture a client-specific operational process or approval chain | Shell schema + Vibe Shell |
 | Connect a third-party service | Core-bound or Shell-bound adapter |
-| Change a financial record proposed by AI | Shell approval flow, then Core after human approval |
+| Implement custom business workflows, approvals, or operational forms | Shell schema + Vibe Shell |
 
 Non-negotiable rules:
 
-- Do not change the `core` schema without explicit architecture-owner approval.
+- Do not change the `core` schema without explicit architecture-owner approval and a reviewed migration.
+- Do not leak operational workflows or approval chains into the `core`; keep the Core strictly workflow-agnostic.
 - Do not give adapters database credentials or direct database access.
 - Do not replace real-time critical workflows with polling.
-- Do not finalize AI-created financial work without a human approval action.
+- Do manage operational business policies and approval workflows exclusively in the Shell.
 - Do generate deterministic Alembic migrations for Shell data-model changes.
 - Do maintain API specifications and `.ai/adapter_schema.md` for every adapter.
 

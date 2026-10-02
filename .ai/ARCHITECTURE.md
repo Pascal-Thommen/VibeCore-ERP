@@ -18,8 +18,9 @@ client's actual operational workflow. Adapters isolate external providers.
 - Adapters never receive direct database connectivity or database credentials.
 - Core-to-adapter payloads use versioned JSON over authenticated REST and events.
 - Critical external actions are event-driven in real time. Polling is recovery only.
-- Financial records proposed by an AI agent are `DRAFT` until an eligible human
-  approves them. Posted records are never edited or deleted.
+- The Core is strictly workflow-agnostic; business approval policies (human,
+  multi-approver, or automated) belong in the Shell. Posted records are immutable
+  and never edited or deleted.
 - All money and exchange rates use PostgreSQL exact `NUMERIC` values. Floating
   point values are forbidden for financial calculations.
 - Every cross-boundary JSON payload supports optional `meta` and `custom_data`
