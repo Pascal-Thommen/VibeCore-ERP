@@ -1,0 +1,1110 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore SIFEN Adapter API",
+    "description": "Isolated adapter service for Paraguayan SIFEN electronic invoicing and dynamic DTE resolution.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/sifen/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Microservice health check endpoint.",
+        "operationId": "health_check_api_v1_sifen_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Check Api V1 Sifen Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Microservice health check endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Check Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/resolve": {
+      "post": {
+        "tags": [
+          "SIFEN"
+        ],
+        "summary": "Resolve Mandant RUC profile into DTE type and tax calculation policy",
+        "description": "Resolve taxpayer RUC profile into official DTE type and IVA regime.",
+        "operationId": "resolve_profile_api_v1_sifen_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MandantRucProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/generate-xml": {
+      "post": {
+        "tags": [
+          "SIFEN"
+        ],
+        "summary": "Generate official SIFEN XML for Factura Electr\u00f3nica or Boleta Resimple Electr\u00f3nica",
+        "description": "Generate compliant SIFEN v150 XML according to taxpayer regime.",
+        "operationId": "generate_xml_api_v1_sifen_generate_xml_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateXmlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Generated XML document",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation or calculation error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/sign": {
+      "post": {
+        "tags": [
+          "SIFEN"
+        ],
+        "summary": "Sign SIFEN XML with XMLDSig and generate official KuDE QR code",
+        "description": "Digitally sign XML document with PKCS#12 certificate and attach QR code.",
+        "operationId": "sign_xml_api_v1_sifen_sign_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/sign-and-send": {
+      "post": {
+        "tags": [
+          "SIFEN"
+        ],
+        "summary": "Sign XML with XMLDSig, generate QR, and transmit to DNIT e-Kuatia via SOAP 1.2 / mTLS",
+        "description": "Sign DTE and transmit to DNIT e-Kuatia SOAP webservice.",
+        "operationId": "sign_and_send_api_v1_sifen_sign_and_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignAndSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignAndSendResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DteHeaderInput": {
+        "properties": {
+          "timbrado_number": {
+            "type": "string",
+            "pattern": "^\\d{8}$",
+            "title": "Timbrado Number"
+          },
+          "establishment_code": {
+            "type": "string",
+            "pattern": "^\\d{3}$",
+            "title": "Establishment Code",
+            "default": "001"
+          },
+          "point_of_issue_code": {
+            "type": "string",
+            "pattern": "^\\d{3}$",
+            "title": "Point Of Issue Code",
+            "default": "001"
+          },
+          "document_number": {
+            "type": "string",
+            "pattern": "^\\d{7}$",
+            "title": "Document Number"
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issue Date"
+          },
+          "security_code": {
+            "type": "string",
+            "pattern": "^\\d{9}$",
+            "title": "Security Code"
+          },
+          "emission_type": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Emission Type",
+            "default": 1
+          },
+          "contributor_type": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Contributor Type",
+            "default": 2
+          },
+          "issuer_ruc": {
+            "type": "string",
+            "pattern": "^\\d{5,8}$",
+            "title": "Issuer Ruc"
+          },
+          "issuer_dv": {
+            "type": "string",
+            "pattern": "^\\d$",
+            "title": "Issuer Dv"
+          },
+          "issuer_legal_name": {
+            "type": "string",
+            "title": "Issuer Legal Name"
+          },
+          "issuer_trade_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Trade Name"
+          },
+          "issuer_address": {
+            "type": "string",
+            "title": "Issuer Address",
+            "default": "Asuncion, Paraguay"
+          },
+          "issuer_city": {
+            "type": "string",
+            "title": "Issuer City",
+            "default": "Asuncion"
+          },
+          "issuer_department_code": {
+            "type": "string",
+            "title": "Issuer Department Code",
+            "default": "1"
+          },
+          "issuer_district_code": {
+            "type": "string",
+            "title": "Issuer District Code",
+            "default": "1"
+          },
+          "issuer_city_code": {
+            "type": "string",
+            "title": "Issuer City Code",
+            "default": "1"
+          },
+          "issuer_economic_activity_code": {
+            "type": "string",
+            "title": "Issuer Economic Activity Code",
+            "default": "62010"
+          },
+          "issuer_economic_activity_desc": {
+            "type": "string",
+            "title": "Issuer Economic Activity Desc",
+            "default": "Actividades de programacion informatica"
+          },
+          "receiver_ruc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Ruc"
+          },
+          "receiver_dv": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Dv"
+          },
+          "receiver_doc_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Doc Number"
+          },
+          "receiver_doc_type": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Doc Type"
+          },
+          "receiver_legal_name": {
+            "type": "string",
+            "title": "Receiver Legal Name",
+            "default": "Consumidor Final"
+          },
+          "receiver_nature": {
+            "type": "integer",
+            "title": "Receiver Nature",
+            "default": 1
+          },
+          "operation_type": {
+            "type": "integer",
+            "title": "Operation Type",
+            "default": 1
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "PYG"
+          },
+          "exchange_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Exchange Rate",
+            "default": "1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "timbrado_number",
+          "document_number",
+          "issue_date",
+          "security_code",
+          "issuer_ruc",
+          "issuer_dv",
+          "issuer_legal_name"
+        ],
+        "title": "DteHeaderInput",
+        "description": "Input header data for SIFEN DTE generation."
+      },
+      "DteItemInput": {
+        "properties": {
+          "line_number": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Line Number"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "title": "Unit Of Measure",
+            "default": "77"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "discount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Discount",
+            "default": "0"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Tax Rate",
+            "default": "10"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line_number",
+          "description",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "DteItemInput",
+        "description": "Input line item for SIFEN DTE generation."
+      },
+      "GenerateXmlRequest": {
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/DteHeaderInput"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DteItemInput"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/MandantRucProfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "header",
+          "items",
+          "profile"
+        ],
+        "title": "GenerateXmlRequest",
+        "description": "Request payload for SIFEN XML generation."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MandantObligacion": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "MandantObligacion",
+        "description": "A registered tax obligation on the taxpayer's RUC profile."
+      },
+      "MandantRucProfile": {
+        "properties": {
+          "ruc": {
+            "type": "string",
+            "pattern": "^\\d{5,8}$",
+            "title": "Ruc"
+          },
+          "dv": {
+            "type": "string",
+            "pattern": "^\\d$",
+            "title": "Dv"
+          },
+          "legal_name": {
+            "type": "string",
+            "title": "Legal Name"
+          },
+          "trade_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trade Name"
+          },
+          "obligaciones": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "$ref": "#/components/schemas/MandantObligacion"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Obligaciones"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "default": "Asuncion, Paraguay"
+          },
+          "city": {
+            "type": "string",
+            "title": "City",
+            "default": "Asuncion"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": "Capital"
+          },
+          "department_code": {
+            "type": "string",
+            "title": "Department Code",
+            "default": "1"
+          },
+          "district_code": {
+            "type": "string",
+            "title": "District Code",
+            "default": "1"
+          },
+          "city_code": {
+            "type": "string",
+            "title": "City Code",
+            "default": "1"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": "021000000"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "default": "facturacion@vibecore.local"
+          },
+          "economic_activity_code": {
+            "type": "string",
+            "title": "Economic Activity Code",
+            "default": "62010"
+          },
+          "economic_activity_desc": {
+            "type": "string",
+            "title": "Economic Activity Desc",
+            "default": "Actividades de programacion informatica"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ruc",
+          "dv",
+          "legal_name",
+          "obligaciones"
+        ],
+        "title": "MandantRucProfile",
+        "description": "The fiscal profile of the tenant/mandant issuing electronic documents."
+      },
+      "ResolvedProfile": {
+        "properties": {
+          "regime": {
+            "$ref": "#/components/schemas/TaxRegime"
+          },
+          "obligation_code": {
+            "type": "integer",
+            "title": "Obligation Code"
+          },
+          "dte_type": {
+            "type": "integer",
+            "title": "Dte Type"
+          },
+          "dte_type_code": {
+            "type": "string",
+            "title": "Dte Type Code"
+          },
+          "dte_type_description": {
+            "type": "string",
+            "title": "Dte Type Description"
+          },
+          "iva_applicable": {
+            "type": "boolean",
+            "title": "Iva Applicable"
+          },
+          "requires_iva_breakdown": {
+            "type": "boolean",
+            "title": "Requires Iva Breakdown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "regime",
+          "obligation_code",
+          "dte_type",
+          "dte_type_code",
+          "dte_type_description",
+          "iva_applicable",
+          "requires_iva_breakdown"
+        ],
+        "title": "ResolvedProfile",
+        "description": "The resolved DTE behavior derived from the Mandant's RUC profile."
+      },
+      "SignAndSendRequest": {
+        "properties": {
+          "header": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DteHeaderInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DteItemInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MandantRucProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw_xml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Xml"
+          },
+          "cert_p12_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert P12 Base64"
+          },
+          "cert_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Path"
+          },
+          "cert_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Password"
+          },
+          "csc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csc"
+          },
+          "id_csc": {
+            "type": "string",
+            "title": "Id Csc",
+            "default": "0001"
+          },
+          "ambiente": {
+            "type": "string",
+            "title": "Ambiente",
+            "default": "test"
+          },
+          "simulation": {
+            "type": "boolean",
+            "title": "Simulation",
+            "default": false
+          },
+          "endpoint_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint Url"
+          }
+        },
+        "type": "object",
+        "title": "SignAndSendRequest",
+        "description": "Request payload for signing and transmitting SIFEN DTE to DNIT."
+      },
+      "SignAndSendResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "cdc": {
+            "type": "string",
+            "title": "Cdc"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "dCodRes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dcodres"
+          },
+          "dMsgRes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dmsgres"
+          },
+          "dFecProc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dfecproc"
+          },
+          "qr_url": {
+            "type": "string",
+            "title": "Qr Url"
+          },
+          "xml_signed": {
+            "type": "string",
+            "title": "Xml Signed"
+          },
+          "raw_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "cdc",
+          "status",
+          "qr_url",
+          "xml_signed"
+        ],
+        "title": "SignAndSendResponse",
+        "description": "Response payload from SIFEN signing and DNIT SOAP transmission."
+      },
+      "SignRequest": {
+        "properties": {
+          "header": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DteHeaderInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DteItemInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MandantRucProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw_xml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Xml"
+          },
+          "cert_p12_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert P12 Base64"
+          },
+          "cert_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Path"
+          },
+          "cert_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Password"
+          },
+          "csc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csc"
+          },
+          "id_csc": {
+            "type": "string",
+            "title": "Id Csc",
+            "default": "0001"
+          },
+          "ambiente": {
+            "type": "string",
+            "title": "Ambiente",
+            "default": "test"
+          }
+        },
+        "type": "object",
+        "title": "SignRequest",
+        "description": "Request payload for signing SIFEN XML and generating QR code."
+      },
+      "SignResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "cdc": {
+            "type": "string",
+            "title": "Cdc"
+          },
+          "xml_signed": {
+            "type": "string",
+            "title": "Xml Signed"
+          },
+          "qr_url": {
+            "type": "string",
+            "title": "Qr Url"
+          },
+          "digest_value": {
+            "type": "string",
+            "title": "Digest Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cdc",
+          "xml_signed",
+          "qr_url",
+          "digest_value"
+        ],
+        "title": "SignResponse",
+        "description": "Response payload containing signed XML and QR code."
+      },
+      "TaxRegime": {
+        "type": "string",
+        "enum": [
+          "IRE_GENERAL",
+          "IRE_SIMPLE",
+          "IRE_RESIMPLE"
+        ],
+        "title": "TaxRegime",
+        "description": "Paraguayan corporate and small-business income tax regimes."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
