@@ -1,22 +1,39 @@
-# SIFEN Adapter
+# SIFEN Adapter Microservice
 
-The SIFEN adapter is an isolated service providing integration with the Paraguayan National Electronic Invoicing System (SIFEN / DNIT / SET) according to [ADR 0007](../../.ai/adr/0007-sifen-adapter-boundary-and-rollout.md).
+The SIFEN adapter is an isolated microservice container providing integration with the Paraguayan National Electronic Invoicing System (SIFEN / DNIT / SET) according to [ADR 0007](../../.ai/adr/0007-sifen-adapter-boundary-and-rollout.md) and [ADR 0008](../../.ai/adr/0008-library-and-implementation-policy.md).
 
 ## Capabilities
 
-1. **Automatic RUC Profile Resolver (`SifenProfileResolver`):**
-   - Inspects the registered tax obligations (`Obligaciones`) of the issuing Mandant:
-     - **Code 700 (IRE General):** Emits Factura Electrónica (`iTiDE = 1`), liquidates IVA 10%, 5%, and Exento.
-     - **Code 701 (IRE Simple):** Emits Factura Electrónica (`iTiDE = 1`), liquidates IVA 10%, 5%, and Exento.
-     - **Code 702 (IRE Resimple):** Emits Boleta Resimple Electrónica (`iTiDE = 4`), exempt from IVA (gross amount only).
+1. **FastAPI Application Server (`sifen.server:app`):**
+   - Implements REST endpoints documented in `openapi.json`:
+     - `POST /api/v1/sifen/resolve`: Resolves Mandant RUC profile to DTE type and tax behavior.
+     - `POST /api/v1/sifen/generate-xml`: Produces SIFEN v150 XML.
+     - `POST /api/v1/sifen/sign`: Signs XML with XMLDSig and adds official KuDE QR code URL.
+     - `POST /api/v1/sifen/sign-and-send`: Complete pipeline from invoice data to digital signature, QR generation, and SOAP 1.2 / mTLS transmission to DNIT.
+     - `GET /health` & `GET /api/v1/sifen/health`: Health monitoring.
 
-2. **SIFEN DTE XML Generator (`SifenXmlGenerator`):**
-   - Implements SIFEN Technical Manual Version 150.
-   - Computes 44-digit CDC using official Modulo 11 check digit algorithm.
-   - Generates schema-compliant XML structures:
-     - Factura Electrónica (`iTiDE = 1`): Includes `gCamFE`, `gCamIVA` with `iAfecIVA`, `dPropIVA`, `dTasaIVA`, `dBasGravIVA`, `dLiqIVAItem`, and `gTotSub` VAT breakdown.
-     - Boleta Resimple Electrónica (`iTiDE = 4`): Marked exempt (`iAfecIVA = 3`), zero VAT calculation, only gross amounts in `gTotSub`.
+2. **pysifen Integration:**
+   - **Digital XMLDSig Signing:** Uses `pysifen.signing.backends.pkcs12.FirmantePkcs12` and `firmar_documento` with PKCS#12 certificates.
+   - **QR Code URL Generation:** Uses `pysifen.qr.DatosQr` and `pysifen.qr.generar_url_qr` adhering to SIFEN v150 § 13.8.
+   - **Fields Outside Signature (`gCamFuFD`):** Injected via `pysifen.documento.sobre.agregar_campos_fuera_de_firma`.
 
-## Architecture & Boundary
+3. **SOAP 1.2 / mTLS Client (`SifenSoapClient`):**
+   - Constructs official SOAP 1.2 envelopes (`rEnviDe`, `dId`, `xDE`).
+   - Supports mutual TLS (mTLS) client certificate authentication.
+   - Seamless test simulation mode for CI/CD and offline verification.
 
-Per ADR 0007, this adapter operates outside the Finance Core. It does not connect directly to the PostgreSQL database. Communication happens via typed payloads and authenticated REST endpoints defined in `openapi.json`.
+4. **Containerization & Independence:**
+   - Runs in isolated Docker container on port 8001.
+   - Completely independent from Odoo, PostgreSQL, or backend databases.
+
+## Running Locally
+
+```bash
+uvicorn sifen.server:app --host 0.0.0.0 --port 8001
+```
+
+## Running with Docker
+
+```bash
+docker compose up sifen-adapter
+```

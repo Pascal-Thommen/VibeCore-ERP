@@ -48,6 +48,17 @@ services:
     secrets:
       - postgres_password
 
+  sifen-adapter:
+    build:
+      context: ../adapters/sifen
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      SIFEN_ENV: test
+      SIFEN_SIMULATION: "false"
+      PORT: "8001"
+
 secrets:
   postgres_password:
     file: ./.secrets/postgres_password

@@ -152,3 +152,78 @@ class DteHeaderInput(BaseModel):
     operation_type: int = 1  # 1=B2B, 2=B2C, 3=B2G, 4=B2F
     currency: str = "PYG"
     exchange_rate: Decimal = Decimal(1)
+
+
+class GenerateXmlRequest(BaseModel):
+    """Request payload for SIFEN XML generation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    header: DteHeaderInput
+    items: list[DteItemInput]
+    profile: MandantRucProfile
+
+
+class SignRequest(BaseModel):
+    """Request payload for signing SIFEN XML and generating QR code."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    header: DteHeaderInput | None = None
+    items: list[DteItemInput] | None = None
+    profile: MandantRucProfile | None = None
+    raw_xml: str | None = None
+    cert_p12_base64: str | None = None
+    cert_path: str | None = None
+    cert_password: str | None = None
+    csc: str | None = None
+    id_csc: str = "0001"
+    ambiente: str = "test"
+
+
+class SignResponse(BaseModel):
+    """Response payload containing signed XML and QR code."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    success: bool = True
+    cdc: str
+    xml_signed: str
+    qr_url: str
+    digest_value: str
+
+
+class SignAndSendRequest(BaseModel):
+    """Request payload for signing and transmitting SIFEN DTE to DNIT."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    header: DteHeaderInput | None = None
+    items: list[DteItemInput] | None = None
+    profile: MandantRucProfile | None = None
+    raw_xml: str | None = None
+    cert_p12_base64: str | None = None
+    cert_path: str | None = None
+    cert_password: str | None = None
+    csc: str | None = None
+    id_csc: str = "0001"
+    ambiente: str = "test"
+    simulation: bool = False
+    endpoint_url: str | None = None
+
+
+class SignAndSendResponse(BaseModel):
+    """Response payload from SIFEN signing and DNIT SOAP transmission."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    success: bool
+    cdc: str
+    status: str
+    dCodRes: str | None = None
+    dMsgRes: str | None = None
+    dFecProc: str | None = None
+    qr_url: str
+    xml_signed: str
+    raw_response: str | None = None
+
