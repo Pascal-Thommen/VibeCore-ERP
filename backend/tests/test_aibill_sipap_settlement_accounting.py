@@ -121,6 +121,70 @@ def test_aibill_sipap_bank_payout_schema_validation_and_reference() -> None:
     assert entry.lines[1].debit == Decimal("0")
 
 
+def test_aibill_sipap_bank_payout_with_10_percent_retencion_autofactura_schema_validation() -> None:
+    """
+    Validates Autofactura with 10% Retencion for developers without RUC under Ley 6380/19:
+    Soll: Verbindlichkeiten gegenueber Entwicklern (100% = 100.000 Gs)
+    Haben: Bank SIPAP Ueberweisungskonto (90% = 90.000 Gs)
+    Haben: Verbindlichkeit Steueramt DNIT / Retenciones por Pagar (10% = 10.000 Gs)
+    """
+    dev_liability_account_id = uuid4()
+    sipap_bank_account_id = uuid4()
+    dnit_retention_account_id = uuid4()
+    sipap_reference = "SIPAP-20261031-DEV002-3C7E1A"
+    autofactura_doc = "AF-202610-A1B2C3"
+
+    payload = {
+        "created_by_actor": "AIBILL_SYSTEM",
+        "entry_date": "2026-11-01",
+        "description": f"SIPAP Entwicklerauszahlung an Maria Benitez / Ref: {sipap_reference} [Autofactura {autofactura_doc} mit 10% Retencion]",
+        "reference": sipap_reference,
+        "currency_code": "PYG",
+        "functional_currency_code": "PYG",
+        "exchange_rate": 1,
+        "lines": [
+            {
+                "account_id": dev_liability_account_id,
+                "description": f"Entlastung Verbindlichkeit via SIPAP Ref {sipap_reference} fuer Maria Benitez",
+                "debit": "100000.000000",
+                "credit": "0",
+            },
+            {
+                "account_id": sipap_bank_account_id,
+                "description": f"Bankabgang SIPAP Ueberweisung (90%) Ref {sipap_reference} an Maria Benitez",
+                "debit": "0",
+                "credit": "90000.000000",
+            },
+            {
+                "account_id": dnit_retention_account_id,
+                "description": f"Steuereinbehalt 10% DNIT Retenciones por Pagar fuer Maria Benitez Autofactura {autofactura_doc}",
+                "debit": "0",
+                "credit": "10000.000000",
+            },
+        ],
+    }
+
+    entry = JournalEntryCreate.model_validate(payload)
+    assert entry.reference == sipap_reference
+    assert len(entry.lines) == 3
+
+    total_debit = sum(line.debit for line in entry.lines)
+    total_credit = sum(line.credit for line in entry.lines)
+    assert total_debit == total_credit == Decimal("100000.000000")
+
+    # Line 1: 100% debit on liabilities
+    assert entry.lines[0].debit == Decimal("100000.000000")
+    assert entry.lines[0].credit == Decimal("0")
+
+    # Line 2: 90% credit on bank
+    assert entry.lines[1].credit == Decimal("90000.000000")
+    assert entry.lines[1].debit == Decimal("0")
+
+    # Line 3: 10% credit on DNIT retenciones
+    assert entry.lines[2].credit == Decimal("10000.000000")
+    assert entry.lines[2].debit == Decimal("0")
+
+
 def test_core_client_sdk_has_accounting_methods() -> None:
     """Verifies that vibecore.client.CoreClient exposes accounting methods."""
     client = CoreClient("http://localhost:8000", access_token="test-token")
@@ -132,3 +196,4 @@ def test_core_client_sdk_has_accounting_methods() -> None:
     assert hasattr(client, "list_journal_entries")
     assert hasattr(client, "post_journal_entry")
     client.close()
+
