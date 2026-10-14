@@ -1,0 +1,157 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore SIFEN Adapter API",
+    "version": "1.0.0",
+    "description": "Isolated adapter service for Paraguayan SIFEN electronic invoicing and dynamic DTE resolution."
+  },
+  "paths": {
+    "/api/v1/sifen/resolve": {
+      "post": {
+        "summary": "Resolve Mandant RUC profile into DTE type and tax calculation policy",
+        "operationId": "resolveRucProfile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MandantRucProfile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved DTE configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid RUC profile or missing tax obligation"
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/generate-xml": {
+      "post": {
+        "summary": "Generate official SIFEN XML for Factura Electrónica or Boleta Resimple Electrónica",
+        "operationId": "generateSifenXml",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateXmlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated XML document",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation or calculation error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MandantRucProfile": {
+        "type": "object",
+        "required": ["ruc", "dv", "legal_name", "obligaciones"],
+        "properties": {
+          "ruc": {
+            "type": "string",
+            "pattern": "^[0-9]{5,8}$"
+          },
+          "dv": {
+            "type": "string",
+            "pattern": "^[0-9]$"
+          },
+          "legal_name": {
+            "type": "string"
+          },
+          "trade_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "obligaciones": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "ResolvedProfile": {
+        "type": "object",
+        "required": [
+          "regime",
+          "obligation_code",
+          "dte_type",
+          "dte_type_code",
+          "dte_type_description",
+          "iva_applicable",
+          "requires_iva_breakdown"
+        ],
+        "properties": {
+          "regime": {
+            "type": "string",
+            "enum": ["IRE_GENERAL", "IRE_SIMPLE", "IRE_RESIMPLE"]
+          },
+          "obligation_code": {
+            "type": "integer"
+          },
+          "dte_type": {
+            "type": "integer"
+          },
+          "dte_type_code": {
+            "type": "string"
+          },
+          "dte_type_description": {
+            "type": "string"
+          },
+          "iva_applicable": {
+            "type": "boolean"
+          },
+          "requires_iva_breakdown": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GenerateXmlRequest": {
+        "type": "object",
+        "required": ["header", "items", "profile"],
+        "properties": {
+          "header": {
+            "type": "object"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "profile": {
+            "$ref": "#/components/schemas/MandantRucProfile"
+          }
+        }
+      }
+    }
+  }
+}
