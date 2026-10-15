@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  pagopar-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-pagopar-adapter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PAGOPAR_PUBLIC_KEY=${PAGOPAR_PUBLIC_KEY:-test_public_key}
+      - PAGOPAR_PRIVATE_KEY=${PAGOPAR_PRIVATE_KEY:-test_private_key}
+      - PAGOPAR_ENV=${PAGOPAR_ENV:-sandbox}
+      - DATABASE_URL=sqlite:////data/pagopar_transactions.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - pagopar_data:/data
+
+volumes:
+  pagopar_data:
