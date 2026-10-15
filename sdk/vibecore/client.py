@@ -1,84 +1,155 @@
-"""Initial typed client boundary for the VibeCore Finance Core API."""
+"""VibeCore Unified Client and Core Client exports."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Self
 
 import httpx
 
+from vibecore.auth.client import AuthClient
+from vibecore.core.client import CoreClient
+from vibecore.core.models import HealthStatus
+from vibecore.payments.pagopar.client import PagoparClient
+from vibecore.payments.stripe.client import StripeClient
+from vibecore.storage.client import StorageClient
 
-@dataclass(frozen=True, slots=True)
-class HealthStatus:
-    """Liveness response returned by the Core API."""
 
-    status: str
+class VibeCoreClient:
+    """
+    Unified entrypoint client for the VibeCore ecosystem.
 
+    Provides convenient, lazy-loaded access to Finance Core, Google Auth,
+    S3 Storage, Pagopar, and Stripe payment adapters.
+    """
 
-class CoreClient:
-    """Connect to an authenticated Core API; resource methods will be added here."""
+    def __init__(
+        self,
+        *,
+        core_url: str | None = None,
+        core_token: str | None = None,
+        auth_url: str | None = None,
+        storage_url: str | None = None,
+        storage_api_key: str | None = None,
+        pagopar_url: str | None = None,
+        pagopar_api_key: str | None = None,
+        stripe_url: str | None = None,
+        stripe_api_key: str | None = None,
+        timeout: float = 10.0,
+        max_retries: int = 3,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self._core_url = core_url
+        self._core_token = core_token
+        self._auth_url = auth_url
+        self._storage_url = storage_url
+        self._storage_api_key = storage_api_key
+        self._pagopar_url = pagopar_url
+        self._pagopar_api_key = pagopar_api_key
+        self._stripe_url = stripe_url
+        self._stripe_api_key = stripe_api_key
+        self._timeout = timeout
+        self._max_retries = max_retries
+        self._transport = transport
 
-    def __init__(self, base_url: str, *, access_token: str, timeout: float = 10.0) -> None:
-        self._client = httpx.Client(
-            base_url=base_url.rstrip("/"),
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=timeout,
-        )
+        self._core: CoreClient | None = None
+        self._auth: AuthClient | None = None
+        self._storage: StorageClient | None = None
+        self._pagopar: PagoparClient | None = None
+        self._stripe: StripeClient | None = None
 
-    def health(self) -> HealthStatus:
-        """Check the Core API liveness endpoint."""
-        response = self._client.get("/health")
-        response.raise_for_status()
-        return HealthStatus(status=response.json()["status"])
+    @property
+    def core(self) -> CoreClient:
+        """Access the CoreClient instance."""
+        if self._core is None:
+            if not self._core_url:
+                raise ValueError("core_url must be provided to access CoreClient.")
+            if not self._core_token:
+                raise ValueError("core_token must be provided to access CoreClient.")
+            self._core = CoreClient(
+                self._core_url,
+                access_token=self._core_token,
+                timeout=self._timeout,
+                max_retries=self._max_retries,
+                transport=self._transport,
+            )
+        return self._core
 
-    def create_account(self, data: dict) -> dict:
-        """Create a chart-of-accounts entry."""
-        response = self._client.post("/api/v1/accounts", json=data)
-        response.raise_for_status()
-        return response.json()
+    @property
+    def auth(self) -> AuthClient:
+        """Access the AuthClient instance."""
+        if self._auth is None:
+            if not self._auth_url:
+                raise ValueError("auth_url must be provided to access AuthClient.")
+            self._auth = AuthClient(
+                self._auth_url,
+                timeout=self._timeout,
+                max_retries=self._max_retries,
+                transport=self._transport,
+            )
+        return self._auth
 
-    def get_account(self, account_id: str) -> dict:
-        """Retrieve an account by ID."""
-        response = self._client.get(f"/api/v1/accounts/{account_id}")
-        response.raise_for_status()
-        return response.json()
+    @property
+    def storage(self) -> StorageClient:
+        """Access the StorageClient instance."""
+        if self._storage is None:
+            if not self._storage_url:
+                raise ValueError("storage_url must be provided to access StorageClient.")
+            self._storage = StorageClient(
+                self._storage_url,
+                api_key=self._storage_api_key,
+                timeout=self._timeout,
+                max_retries=self._max_retries,
+                transport=self._transport,
+            )
+        return self._storage
 
-    def list_accounts(self, offset: int = 0, limit: int = 100) -> list[dict]:
-        """List chart-of-accounts entries."""
-        response = self._client.get("/api/v1/accounts", params={"offset": offset, "limit": limit})
-        response.raise_for_status()
-        return response.json()
+    @property
+    def pagopar(self) -> PagoparClient:
+        """Access the PagoparClient instance."""
+        if self._pagopar is None:
+            if not self._pagopar_url:
+                raise ValueError("pagopar_url must be provided to access PagoparClient.")
+            self._pagopar = PagoparClient(
+                self._pagopar_url,
+                api_key=self._pagopar_api_key,
+                timeout=self._timeout,
+                max_retries=self._max_retries,
+                transport=self._transport,
+            )
+        return self._pagopar
 
-    def create_journal_entry(self, data: dict) -> dict:
-        """Create a double-entry journal entry header and lines."""
-        response = self._client.post("/api/v1/journal-entries", json=data)
-        response.raise_for_status()
-        return response.json()
-
-    def get_journal_entry(self, journal_entry_id: str) -> dict:
-        """Retrieve a journal entry by ID."""
-        response = self._client.get(f"/api/v1/journal-entries/{journal_entry_id}")
-        response.raise_for_status()
-        return response.json()
-
-    def list_journal_entries(self, offset: int = 0, limit: int = 100) -> list[dict]:
-        """List journal entries."""
-        response = self._client.get("/api/v1/journal-entries", params={"offset": offset, "limit": limit})
-        response.raise_for_status()
-        return response.json()
-
-    def post_journal_entry(self, journal_entry_id: str, data: dict) -> dict:
-        """Post and lock a balanced journal entry with human approval."""
-        response = self._client.post(f"/api/v1/journal-entries/{journal_entry_id}/post", json=data)
-        response.raise_for_status()
-        return response.json()
+    @property
+    def stripe(self) -> StripeClient:
+        """Access the StripeClient instance."""
+        if self._stripe is None:
+            if not self._stripe_url:
+                raise ValueError("stripe_url must be provided to access StripeClient.")
+            self._stripe = StripeClient(
+                self._stripe_url,
+                api_key=self._stripe_api_key,
+                timeout=self._timeout,
+                max_retries=self._max_retries,
+                transport=self._transport,
+            )
+        return self._stripe
 
     def close(self) -> None:
-        """Release the underlying HTTP connection pool."""
-        self._client.close()
+        """Close all initialized adapter clients."""
+        for client in (
+            self._core,
+            self._auth,
+            self._storage,
+            self._pagopar,
+            self._stripe,
+        ):
+            if client is not None:
+                client.close()
 
     def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *_: object) -> None:
         self.close()
+
+
+__all__ = ["CoreClient", "HealthStatus", "VibeCoreClient"]
