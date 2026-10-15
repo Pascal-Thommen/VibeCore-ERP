@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  stripe-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-stripe-adapter
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mock_secret_key}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_mock_publishable_key}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_secret}
+      - STRIPE_DEFAULT_CURRENCY=${STRIPE_DEFAULT_CURRENCY:-USD}
+      - STRIPE_ENV=${STRIPE_ENV:-sandbox}
+      - DATABASE_URL=sqlite:////data/stripe_transactions.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - stripe_data:/data
+
+volumes:
+  stripe_data:
