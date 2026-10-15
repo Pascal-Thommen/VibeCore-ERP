@@ -1,0 +1,785 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore S3 Storage Adapter",
+    "description": "High-performance S3-compatible object storage microservice for VibeCore ERP documents, invoices, and blob assets.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness Probe",
+        "description": "Returns 200 OK if the microservice process is alive.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness Probe",
+        "description": "Verifies that the target S3 bucket is accessible and ready to accept requests.\nReturns 503 if the S3 bucket is unreachable.",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/storage/upload": {
+      "post": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Direct Streaming Upload",
+        "description": "Uploads a document directly to S3 via streaming.\nCalculates SHA-256 hash on-the-fly and saves integrity metadata on the object.",
+        "operationId": "upload_file_api_v1_storage_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_v1_storage_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/storage/presigned-upload": {
+      "post": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Generate Presigned Upload URL",
+        "description": "Generates a cryptographically signed PUT URL for direct client-to-storage upload.\nOffloads bandwidth and CPU from the application server.",
+        "operationId": "create_presigned_upload_api_v1_storage_presigned_upload_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignedUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/storage/presigned-download": {
+      "post": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Generate Presigned Download URL",
+        "description": "Generates a cryptographically signed GET URL for downloading files directly from storage.",
+        "operationId": "create_presigned_download_api_v1_storage_presigned_download_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignedDownloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedDownloadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/storage/files/{file_id}/metadata": {
+      "get": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Get File Metadata",
+        "description": "Retrieves file metadata from S3 including size, Content-Type, ETag, and SHA-256 integrity hash.",
+        "operationId": "get_file_metadata_api_v1_storage_files__file_id__metadata_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileMetadataResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/storage/files/{file_id}": {
+      "delete": {
+        "tags": [
+          "Storage"
+        ],
+        "summary": "Delete File",
+        "description": "Deletes an object from S3 storage after confirming its existence.",
+        "operationId": "delete_file_api_v1_storage_files__file_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteFileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_file_api_v1_storage_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "File to upload via streaming."
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id",
+            "description": "Optional custom file path or identifier."
+          },
+          "custom_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Metadata",
+            "description": "Optional JSON-encoded dictionary of custom metadata."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_api_v1_storage_upload_post"
+      },
+      "DeleteFileResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Unique file identifier."
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "description": "Deletion confirmation status."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Status message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "deleted",
+          "message"
+        ],
+        "title": "DeleteFileResponse"
+      },
+      "DirectUploadResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Unique file identifier."
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Original filename."
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "MIME content type."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "description": "File size in bytes."
+          },
+          "sha256_hash": {
+            "type": "string",
+            "title": "Sha256 Hash",
+            "description": "Hexadecimal SHA-256 integrity hash."
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path",
+            "description": "Object key path in the storage bucket."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Upload timestamp in UTC."
+          },
+          "etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etag",
+            "description": "S3 ETag checksum."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "sha256_hash",
+          "storage_path"
+        ],
+        "title": "DirectUploadResponse"
+      },
+      "FileMetadataResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Unique file identifier."
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Original or mapped filename."
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "MIME content type."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "description": "File size in bytes."
+          },
+          "sha256_hash": {
+            "type": "string",
+            "title": "Sha256 Hash",
+            "description": "SHA-256 integrity hash."
+          },
+          "etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etag",
+            "description": "S3 ETag checksum."
+          },
+          "last_modified": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Modified",
+            "description": "Last modification timestamp."
+          },
+          "custom_metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Custom Metadata",
+            "description": "User or system defined metadata."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "sha256_hash"
+        ],
+        "title": "FileMetadataResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Liveness status.",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Service version."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "Current server timestamp."
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "HealthResponse"
+      },
+      "PresignedDownloadRequest": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "File Id",
+            "description": "Unique file identifier to download."
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 60.0,
+            "title": "Ttl Seconds",
+            "description": "Validity period in seconds (60s to 24h).",
+            "default": 3600
+          },
+          "download_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Filename",
+            "description": "Optional friendly filename for Content-Disposition."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id"
+        ],
+        "title": "PresignedDownloadRequest"
+      },
+      "PresignedDownloadResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Unique file identifier."
+          },
+          "download_url": {
+            "type": "string",
+            "title": "Download Url",
+            "description": "Cryptographically signed temporary download URL."
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds",
+            "description": "Remaining validity duration in seconds."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "download_url",
+          "expires_in_seconds"
+        ],
+        "title": "PresignedDownloadResponse"
+      },
+      "PresignedUploadRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "description": "Name of the file to be uploaded."
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "MIME content type of the file."
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id",
+            "description": "Optional custom file identifier. Must be safe path characters."
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 60.0,
+            "title": "Ttl Seconds",
+            "description": "Validity period in seconds (60s to 24h).",
+            "default": 3600
+          },
+          "sha256_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256 Hash",
+            "description": "Optional expected SHA-256 hash for client integrity."
+          },
+          "custom_metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Custom Metadata",
+            "description": "Arbitrary custom metadata key-values."
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content_type"
+        ],
+        "title": "PresignedUploadRequest"
+      },
+      "PresignedUploadResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Unique file identifier."
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url",
+            "description": "Cryptographically signed temporary upload URL."
+          },
+          "method": {
+            "type": "string",
+            "title": "Method",
+            "description": "HTTP method to use for the upload (PUT).",
+            "default": "PUT"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Headers",
+            "description": "Required HTTP headers for the direct upload."
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds",
+            "description": "Remaining validity duration in seconds."
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path",
+            "description": "Object key in the S3 bucket."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "upload_url",
+          "expires_in_seconds",
+          "storage_path"
+        ],
+        "title": "PresignedUploadResponse"
+      },
+      "ReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Readiness status ('ready' or 'unready')."
+          },
+          "bucket": {
+            "type": "string",
+            "title": "Bucket",
+            "description": "Configured S3 bucket."
+          },
+          "storage_connected": {
+            "type": "boolean",
+            "title": "Storage Connected",
+            "description": "True if S3 bucket is reachable."
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "Connected S3 endpoint URL."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "Current server timestamp."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "bucket",
+          "storage_connected"
+        ],
+        "title": "ReadyResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}
