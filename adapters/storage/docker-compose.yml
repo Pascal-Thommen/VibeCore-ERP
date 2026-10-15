@@ -1,0 +1,46 @@
+services:
+  storage-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-storage-adapter
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - STORAGE_ENDPOINT_URL=http://minio:9000
+      - STORAGE_PUBLIC_ENDPOINT_URL=http://localhost:9000
+      - STORAGE_ACCESS_KEY=minioadmin
+      - STORAGE_SECRET_KEY=minioadmin
+      - STORAGE_BUCKET=vibecore-documents
+      - STORAGE_REGION=us-east-1
+      - STORAGE_ADDRESSING_STYLE=path
+      - STORAGE_MAX_UPLOAD_SIZE_BYTES=52428800
+      - STORAGE_CONNECT_TIMEOUT=5.0
+      - STORAGE_READ_TIMEOUT=30.0
+      - STORAGE_MAX_RETRIES=3
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: vibecore-storage-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - minio_data:/data
+
+volumes:
+  minio_data:
