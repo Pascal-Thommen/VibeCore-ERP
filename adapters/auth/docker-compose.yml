@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  vibecore-auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-auth-adapter
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8001/auth/google/callback}
+      - JWT_SECRET=${JWT_SECRET:-vibecore-super-secure-production-jwt-secret-min-32-chars-long}
+      - COOKIE_SECRET=${COOKIE_SECRET:-vibecore-cookie-signing-secret-at-least-32-bytes-secure}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-["pascal@vibecore.org","pascalsolarluchs@gmail.com"]}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
