@@ -1,0 +1,275 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore Pagopar Payment Adapter API",
+    "version": "1.0.0",
+    "description": "Autonomer Microservice zur Integration des paraguayischen Zahlungsdienstleisters Pagopar."
+  },
+  "paths": {
+    "/api/v1/pagopar/orders": {
+      "post": {
+        "summary": "Initiiert einen Bezahlvorgang bei Pagopar und liefert die Checkout-URL",
+        "operationId": "createPagoparOrder",
+        "parameters": [
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Correlation-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Auftrag erfolgreich bei Pagopar registriert",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ungültige Bestelldaten oder Validierungsfehler"
+          },
+          "502": {
+            "description": "Fehler bei der Kommunikation mit dem Pagopar Gateway"
+          }
+        }
+      }
+    },
+    "/api/v1/pagopar/orders/{order_id}": {
+      "get": {
+        "summary": "Ruft den Status und das Audit-Log eines Auftrags ab",
+        "operationId": "getPagoparOrder",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Auftragsdaten und Zahlungsstatus",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Auftrag nicht gefunden"
+          }
+        }
+      }
+    },
+    "/api/v1/pagopar/orders/{order_id}/sync": {
+      "post": {
+        "summary": "Synchronisiert den Zahlungsstatus aktiv über den Pagopar Polling-Endpunkt",
+        "operationId": "syncPagoparOrderStatus",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aktualisierter Transaktionsstatus nach Polling",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Auftrag nicht gefunden"
+          },
+          "502": {
+            "description": "Kommunikationsfehler bei Pagopar Abfrage"
+          }
+        }
+      }
+    },
+    "/api/v1/pagopar/webhook": {
+      "post": {
+        "summary": "Empfängt asynchrone Zahlungsbestätigungen von Pagopar",
+        "operationId": "handlePagoparWebhook",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagoparWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook erfolgreich validiert und verarbeitet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Kryptografische Signaturprüfung fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Liveness Probe für Container-Orchestrierung",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "Service ist betriebsbereit"
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness Probe mit Prüfung von Datenbank und Gateway-Konfiguration",
+        "operationId": "readinessCheck",
+        "responses": {
+          "200": {
+            "description": "Service ist vollständig initialisiert und bereit"
+          },
+          "503": {
+            "description": "Service noch nicht betriebsbereit"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Buyer": {
+        "type": "object",
+        "required": ["ruc", "email", "nombre", "telefono", "documento", "tipo_documento", "razon_social"],
+        "properties": {
+          "ruc": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "nombre": { "type": "string" },
+          "telefono": { "type": "string" },
+          "direccion": { "type": "string", "nullable": true },
+          "documento": { "type": "string" },
+          "tipo_documento": { "type": "string", "enum": ["CI", "RUC", "PAS"] },
+          "razon_social": { "type": "string" }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "required": ["id_producto", "nombre", "cantidad", "precio_total"],
+        "properties": {
+          "id_producto": { "type": "string" },
+          "nombre": { "type": "string" },
+          "cantidad": { "type": "integer", "minimum": 1 },
+          "precio_total": { "type": "number", "minimum": 0 },
+          "categoria": { "type": "string", "default": "99" }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": ["order_id", "monto_total", "descripcion_resumen", "comprador", "compras_items"],
+        "properties": {
+          "order_id": { "type": "string" },
+          "monto_total": { "type": "number", "minimum": 1 },
+          "descripcion_resumen": { "type": "string" },
+          "fecha_maxima_pago": { "type": "string", "nullable": true },
+          "comprador": { "$ref": "#/components/schemas/Buyer" },
+          "compras_items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OrderItem" },
+            "minItems": 1
+          },
+          "meta": { "type": "object", "nullable": true },
+          "custom_data": { "type": "object", "nullable": true }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "required": ["order_id", "status", "monto_total", "currency"],
+        "properties": {
+          "order_id": { "type": "string" },
+          "pagopar_hash": { "type": "string", "nullable": true },
+          "checkout_url": { "type": "string", "nullable": true },
+          "status": {
+            "type": "string",
+            "enum": ["INITIATED", "PENDING_PAYMENT", "PAID", "EXPIRED", "FAILED", "CANCELLED"]
+          },
+          "monto_total": { "type": "number" },
+          "currency": { "type": "string", "default": "PYG" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "paid_at": { "type": "string", "format": "date-time", "nullable": true },
+          "payment_method": { "type": "string", "nullable": true },
+          "receipt_number": { "type": "string", "nullable": true }
+        }
+      },
+      "PagoparWebhookItem": {
+        "type": "object",
+        "required": ["pagado", "hash_pedido", "monto", "token"],
+        "properties": {
+          "pagado": { "type": "boolean" },
+          "fecha_pago": { "type": "string", "nullable": true },
+          "forma_pago": { "type": "string", "nullable": true },
+          "forma_pago_identificador": { "type": "string", "nullable": true },
+          "hash_pedido": { "type": "string" },
+          "monto": { "type": "number" },
+          "token": { "type": "string" },
+          "numero_comprobante": { "type": "string", "nullable": true },
+          "identificador_pago": { "type": "integer", "nullable": true }
+        }
+      },
+      "PagoparWebhookPayload": {
+        "type": "object",
+        "required": ["respuesta", "resultado"],
+        "properties": {
+          "respuesta": { "type": "boolean" },
+          "resultado": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PagoparWebhookItem" }
+          }
+        }
+      }
+    }
+  }
+}
