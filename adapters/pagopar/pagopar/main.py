@@ -3,11 +3,14 @@ FastAPI application entrypoint for VibeCore Pagopar Payment Adapter.
 Includes lifespan context, observability middleware, and health endpoints.
 """
 
-from contextlib import asynccontextmanager
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, Response, status
+from sqlalchemy import text
+
 from pagopar.config import settings
 from pagopar.database import engine, init_db
 from pagopar.router import router
@@ -17,9 +20,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
 )
 logger = logging.getLogger("pagopar.main")
-
-
-from sqlalchemy import text
 
 
 @asynccontextmanager

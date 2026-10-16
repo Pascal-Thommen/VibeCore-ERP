@@ -5,6 +5,7 @@ Tests for PKCE (RFC 7636) and HMAC signed CSRF state validation.
 import time
 
 import pytest
+
 from app.pkce import (
     compute_code_challenge,
     create_signed_state,

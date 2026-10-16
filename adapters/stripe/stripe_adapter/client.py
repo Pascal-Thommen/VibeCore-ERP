@@ -10,7 +10,8 @@ import hmac
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import httpx
 
 from stripe_adapter.config import Settings, settings
@@ -25,17 +26,15 @@ logger = logging.getLogger("stripe_adapter.client")
 
 class StripeError(Exception):
     """Base exception for all Stripe adapter operations."""
-    pass
 
 
 class StripeSignatureError(StripeError):
     """Raised when cryptographic webhook signature validation fails."""
-    pass
 
 
 class StripeGatewayError(StripeError):
     """Raised when Stripe gateway rejects a request or returns an error response."""
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Any = None):
+    def __init__(self, message: str, status_code: int | None = None, details: Any = None):
         super().__init__(message)
         self.status_code = status_code
         self.details = details
@@ -43,18 +42,16 @@ class StripeGatewayError(StripeError):
 
 class StripeNetworkTimeoutError(StripeError):
     """Raised when Stripe network requests exceed configured timeouts."""
-    pass
 
 
 class StripeOrderNotFoundError(StripeError):
     """Raised when a requested order or payment is not found."""
-    pass
 
 
 class StripeClient:
     """Enterprise client for Stripe REST API operations."""
 
-    def __init__(self, custom_settings: Optional[Settings] = None):
+    def __init__(self, custom_settings: Settings | None = None):
         self.cfg = custom_settings or settings
 
     @staticmethod
@@ -63,17 +60,17 @@ class StripeClient:
         Computes expected HMAC-SHA256 signature for Stripe webhook payload:
         signature = HMAC-SHA256(secret, f"{timestamp}." + payload)
         """
-        signed_payload = f"{timestamp}.".encode("utf-8") + payload
+        signed_payload = f"{timestamp}.".encode() + payload
         return hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
 
     @classmethod
     def verify_webhook_signature(
         cls,
         payload: bytes,
-        signature_header: Optional[str],
+        signature_header: str | None,
         secret: str,
         tolerance: int = 300,
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    ) -> tuple[bool, str, dict[str, Any]]:
         """
         Verifies webhook authenticity using timing-safe comparison to prevent timing attacks.
         Validates timestamp against allowed tolerance to protect against replay attacks.
@@ -84,8 +81,8 @@ class StripeClient:
             return False, "", {}
 
         # Parse header: t=1492774577,v1=5257a869e7ecebeda32affa62cd496d1b9e67e47731ec2d599e773f577c39810
-        timestamp: Optional[int] = None
-        signatures: List[str] = []
+        timestamp: int | None = None
+        signatures: list[str] = []
 
         parts = signature_header.split(",")
         for item in parts:
@@ -124,7 +121,7 @@ class StripeClient:
         # Timing-safe comparison against all v1 signatures in header
         is_valid = any(hmac.compare_digest(expected_sig, sig) for sig in signatures)
 
-        event_data: Dict[str, Any] = {}
+        event_data: dict[str, Any] = {}
         if is_valid:
             try:
                 event_data = json.loads(payload.decode("utf-8"))
@@ -138,10 +135,10 @@ class StripeClient:
         self,
         method: str,
         path: str,
-        data: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """Executes an HTTP request to Stripe REST API with exponential backoff and timeouts."""
         url = f"{self.cfg.resolved_base_url}{path}"
         req_headers = {
@@ -153,7 +150,7 @@ class StripeClient:
         if correlation_id:
             req_headers["X-Correlation-ID"] = correlation_id
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(1, self.cfg.max_retries + 1):
             try:
                 async with httpx.AsyncClient(timeout=self.cfg.request_timeout_seconds) as client:
@@ -213,14 +210,14 @@ class StripeClient:
     async def create_checkout_session(
         self,
         request: CreateCheckoutSessionRequest,
-        idempotency_key: Optional[str] = None,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        idempotency_key: str | None = None,
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Creates a hosted Stripe Checkout Session via POST /v1/checkout/sessions.
         Transforms amounts to smallest currency units (cents).
         """
-        data: Dict[str, str] = {
+        data: dict[str, str] = {
             "mode": "payment",
             "customer_email": request.customer_email,
             "client_reference_id": request.order_id,
@@ -250,7 +247,7 @@ class StripeClient:
             for k, v in request.meta.items():
                 data[f"metadata[{k}]"] = str(v)
 
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
 
@@ -277,14 +274,14 @@ class StripeClient:
     async def create_payment_intent(
         self,
         request: CreatePaymentIntentRequest,
-        idempotency_key: Optional[str] = None,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        idempotency_key: str | None = None,
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Creates a direct PaymentIntent via POST /v1/payment_intents.
         """
         amount_cents = CurrencyHelper.amount_to_cents(request.amount, request.currency)
-        data: Dict[str, str] = {
+        data: dict[str, str] = {
             "amount": str(amount_cents),
             "currency": request.currency.lower(),
             "description": request.description,
@@ -303,7 +300,7 @@ class StripeClient:
             for k, v in request.meta.items():
                 data[f"metadata[{k}]"] = str(v)
 
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
 
@@ -330,8 +327,8 @@ class StripeClient:
     async def get_checkout_session(
         self,
         session_id: str,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """Retrieves a Checkout Session from Stripe."""
         return await self._request(
             method="GET",
@@ -342,8 +339,8 @@ class StripeClient:
     async def get_payment_intent(
         self,
         payment_intent_id: str,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """Retrieves a PaymentIntent from Stripe."""
         return await self._request(
             method="GET",

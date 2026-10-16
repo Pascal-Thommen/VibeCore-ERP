@@ -3,7 +3,6 @@ Tests for ACID database guarantees, transaction rollbacks, and schema boundary v
 Säule 2 (Datenintegrität und Transaktionen ACID) des Software Testing Audit Frameworks.
 """
 
-import httpx
 import pytest
 from pagopar.client import PagoparClient, PagoparError
 from pagopar.db_models import PagoparTransaction

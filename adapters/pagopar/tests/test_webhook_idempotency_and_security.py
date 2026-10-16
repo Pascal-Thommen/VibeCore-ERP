@@ -3,7 +3,8 @@ Tests for Webhook security validation, idempotent processing, and replay prevent
 Säule 1 (Idempotenz) und Säule 2 (Datenintegrität) des Software Testing Audit Frameworks.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import pytest
 from pagopar.client import PagoparClient, PagoparSignatureError
 from pagopar.db_models import PagoparTransaction, PagoparWebhookLog
@@ -34,8 +35,8 @@ def seeded_transaction(db_session):
         buyer_name="Juan Perez",
         description="Pago de servicios",
         checkout_url="https://sandbox.pagopar.com/pagos/hash_webhook_1234567890abcdef",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(tx)
     db_session.commit()

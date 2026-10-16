@@ -103,7 +103,9 @@ def test_journal_line_update_cannot_null_out_posting_amounts() -> None:
 
 
 def test_journal_routes_and_database_invariants_are_registered() -> None:
-    paths = {route.path for route in app.routes}
+    paths = {route.path for route in app.routes if hasattr(route, "path")} | set(
+        app.openapi().get("paths", {}).keys()
+    )
     assert "/api/v1/journal-entries" in paths
     assert "/api/v1/journal-entries/{journal_entry_id}/post" in paths
 

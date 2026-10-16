@@ -4,9 +4,7 @@ Säule 3 (Sicherheit) und Säule 4 (Observability) des Software Testing Audit Fr
 """
 
 import httpx
-import pytest
 from fastapi.testclient import TestClient
-
 from stripe_adapter.models import OrderStatus
 
 

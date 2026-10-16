@@ -2,13 +2,13 @@
 Pytest configuration and fixtures for Stripe Payment Gateway Adapter test suite.
 """
 
-from typing import Generator
+from collections.abc import Generator
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
 from stripe_adapter.client import StripeClient
 from stripe_adapter.config import Settings
 from stripe_adapter.database import get_db

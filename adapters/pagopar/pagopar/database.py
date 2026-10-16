@@ -2,9 +2,11 @@
 Database engine and session management for Pagopar Adapter.
 """
 
-from typing import Generator
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+
 from pagopar.config import settings
 from pagopar.db_models import Base
 

@@ -25,7 +25,8 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -35,7 +36,7 @@ from app.core.financial_types import (
     QUANTITY_NUMERIC,
     TAX_RATE_NUMERIC,
 )
-from app.db.base import Base, CORE_SCHEMA
+from app.db.base import CORE_SCHEMA, Base
 
 
 class CoreModelMixin:

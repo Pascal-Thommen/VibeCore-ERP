@@ -5,7 +5,7 @@ Exposes REST endpoints for order initiation, webhook notifications, and polling 
 
 import json
 import logging
-from typing import Optional
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -33,8 +33,8 @@ service = PagoparPaymentService()
 
 
 def verify_adapter_auth(
-    x_adapter_key: Optional[str] = Header(None, alias="X-Adapter-Key"),
-    authorization: Optional[str] = Header(None),
+    x_adapter_key: str | None = Header(None, alias="X-Adapter-Key"),
+    authorization: str | None = Header(None),
 ) -> None:
     """Verifies internal adapter authentication if ADAPTER_API_KEY is configured."""
     if not settings.adapter_api_key:
@@ -63,8 +63,8 @@ def verify_adapter_auth(
 )
 async def create_order(
     request: CreateOrderRequest,
-    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
-    x_correlation_id: Optional[str] = Header(None, alias="X-Correlation-ID"),
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
     db: Session = Depends(get_db),
     _auth: None = Depends(verify_adapter_auth),
 ) -> OrderResponse:
@@ -110,7 +110,7 @@ def get_order(
 )
 async def sync_order(
     order_id: str,
-    x_correlation_id: Optional[str] = Header(None, alias="X-Correlation-ID"),
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
     db: Session = Depends(get_db),
     _auth: None = Depends(verify_adapter_auth),
 ) -> SyncOrderResponse:

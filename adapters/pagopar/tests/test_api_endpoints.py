@@ -6,7 +6,6 @@ Covers Säule 4 (Observability), Routing, Auth, and Idempotency Headers.
 import httpx
 import pytest
 from pagopar.client import PagoparClient
-from pagopar.models import OrderStatus
 
 
 @pytest.fixture

@@ -2,20 +2,19 @@
 Pytest configuration and fixtures for Pagopar Payment Gateway Adapter test suite.
 """
 
-import os
-from typing import Generator
+from collections.abc import Generator
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from pagopar.client import PagoparClient
 from pagopar.config import Settings
 from pagopar.database import get_db
 from pagopar.db_models import Base
 from pagopar.main import create_app
 from pagopar.service import PagoparPaymentService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 TEST_PUBLIC_KEY = "test_pub_key_9999"
 TEST_PRIVATE_KEY = "test_priv_secret_8888"

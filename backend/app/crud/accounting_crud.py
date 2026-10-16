@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -307,7 +307,7 @@ async def post_journal_entry(
         raise ValueError("the journal entry creator cannot approve the same entry")
     _require_balanced_entry(journal_entry)
     await _require_postable_line_accounts(session, journal_entry)
-    journal_entry.posted_at = datetime.now(timezone.utc)
+    journal_entry.posted_at = datetime.now(UTC)
     journal_entry.posted_by_actor = data.approved_by_actor
     journal_entry.posted_by_role = data.approved_by_role
     journal_entry.status = "POSTED"

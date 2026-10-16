@@ -7,7 +7,7 @@ once.  This is the ACID boundary required by the transactional-outbox pattern.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -30,7 +30,7 @@ _VALID_STATUS_TRANSITIONS = {
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def enqueue_outbox_event(session: AsyncSession, data: OutboxEventCreate) -> OutboxEvent:

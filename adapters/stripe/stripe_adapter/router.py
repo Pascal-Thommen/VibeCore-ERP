@@ -4,8 +4,8 @@ Exposes REST endpoints for checkout sessions, direct payment intents, webhook no
 """
 
 import logging
-from typing import Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from stripe_adapter.client import (
@@ -32,8 +32,8 @@ service = StripePaymentService()
 
 
 def verify_adapter_auth(
-    x_adapter_key: Optional[str] = Header(None, alias="X-Adapter-Key"),
-    authorization: Optional[str] = Header(None),
+    x_adapter_key: str | None = Header(None, alias="X-Adapter-Key"),
+    authorization: str | None = Header(None),
 ) -> None:
     """Verifies internal adapter authentication if ADAPTER_API_KEY is configured."""
     if not settings.adapter_api_key:
@@ -62,8 +62,8 @@ def verify_adapter_auth(
 )
 async def create_checkout_session(
     request: CreateCheckoutSessionRequest,
-    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
-    x_correlation_id: Optional[str] = Header(None, alias="X-Correlation-ID"),
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
     db: Session = Depends(get_db),
     _auth: None = Depends(verify_adapter_auth),
 ) -> PaymentResponse:
@@ -94,8 +94,8 @@ async def create_checkout_session(
 )
 async def create_payment_intent(
     request: CreatePaymentIntentRequest,
-    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
-    x_correlation_id: Optional[str] = Header(None, alias="X-Correlation-ID"),
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
     db: Session = Depends(get_db),
     _auth: None = Depends(verify_adapter_auth),
 ) -> PaymentResponse:
@@ -141,7 +141,7 @@ def get_payment(
 )
 async def sync_payment(
     payment_id: str,
-    x_correlation_id: Optional[str] = Header(None, alias="X-Correlation-ID"),
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
     db: Session = Depends(get_db),
     _auth: None = Depends(verify_adapter_auth),
 ) -> SyncPaymentResponse:
@@ -163,7 +163,7 @@ async def sync_payment(
 )
 async def handle_webhook(
     request: Request,
-    stripe_signature: Optional[str] = Header(None, alias="Stripe-Signature"),
+    stripe_signature: str | None = Header(None, alias="Stripe-Signature"),
     db: Session = Depends(get_db),
 ) -> WebhookProcessResult:
     """

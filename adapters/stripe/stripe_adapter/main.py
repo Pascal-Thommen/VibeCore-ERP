@@ -3,10 +3,11 @@ FastAPI application entrypoint for VibeCore Stripe Payment Adapter.
 Includes lifespan context, observability middleware, and health endpoints.
 """
 
-from contextlib import asynccontextmanager
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, Response, status
 from sqlalchemy import text
 

@@ -3,16 +3,16 @@ Business logic and persistence orchestration for Stripe Adapter.
 Guarantees ACID transactions, strict idempotency, and defense against duplicate processing.
 """
 
-from datetime import datetime, timezone
 import json
 import logging
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from stripe_adapter.client import (
     StripeClient,
     StripeError,
-    StripeGatewayError,
     StripeOrderNotFoundError,
     StripeSignatureError,
 )
@@ -36,8 +36,8 @@ class StripePaymentService:
 
     def __init__(
         self,
-        client: Optional[StripeClient] = None,
-        custom_settings: Optional[Settings] = None,
+        client: StripeClient | None = None,
+        custom_settings: Settings | None = None,
     ):
         self.cfg = custom_settings or settings
         self.client = client or StripeClient(self.cfg)
@@ -66,8 +66,8 @@ class StripePaymentService:
         self,
         db: Session,
         request: CreateCheckoutSessionRequest,
-        idempotency_key: Optional[str] = None,
-        correlation_id: Optional[str] = None,
+        idempotency_key: str | None = None,
+        correlation_id: str | None = None,
     ) -> PaymentResponse:
         """
         Creates a Stripe Checkout Session and persists the transaction idempotently.
@@ -122,8 +122,8 @@ class StripePaymentService:
             customer_email=request.customer_email,
             description=request.description,
             checkout_url=checkout_url,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             raw_order_payload=request.model_dump_json(),
             raw_last_response=json.dumps(raw_resp),
         )
@@ -143,8 +143,8 @@ class StripePaymentService:
         self,
         db: Session,
         request: CreatePaymentIntentRequest,
-        idempotency_key: Optional[str] = None,
-        correlation_id: Optional[str] = None,
+        idempotency_key: str | None = None,
+        correlation_id: str | None = None,
     ) -> PaymentResponse:
         """
         Creates a direct Stripe PaymentIntent and persists the transaction idempotently.
@@ -202,8 +202,8 @@ class StripePaymentService:
             customer_email=request.customer_email,
             description=request.description,
             client_secret=client_secret,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             raw_order_payload=request.model_dump_json(),
             raw_last_response=json.dumps(raw_resp),
         )
@@ -223,7 +223,7 @@ class StripePaymentService:
         self,
         db: Session,
         raw_body: bytes,
-        signature_header: Optional[str],
+        signature_header: str | None,
     ) -> WebhookProcessResult:
         """
         Validates cryptographically and idempotently processes Stripe payment webhook events.
@@ -259,7 +259,7 @@ class StripePaymentService:
                 is_valid_signature=False,
                 processed_status="SIGNATURE_FAILED",
                 raw_payload=raw_body.decode("utf-8", errors="replace"),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             db.add(audit_log)
             db.commit()
@@ -268,7 +268,7 @@ class StripePaymentService:
         # Step B: Idempotency check against duplicate webhook events
         duplicate_check = db.query(StripeWebhookLog).filter(
             StripeWebhookLog.event_id == event_id,
-            StripeWebhookLog.is_valid_signature == True,
+            StripeWebhookLog.is_valid_signature.is_(True),
             StripeWebhookLog.processed_status == "PROCESSED",
         ).first()
 
@@ -283,7 +283,7 @@ class StripePaymentService:
                 is_valid_signature=True,
                 processed_status="DUPLICATE_IGNORED",
                 raw_payload=raw_body.decode("utf-8", errors="replace"),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             db.add(duplicate_log)
             db.commit()
@@ -298,10 +298,10 @@ class StripePaymentService:
             )
 
         # Step C: Process event by type
-        data_object: Dict[str, Any] = event_data.get("data", {}).get("object", {})
+        data_object: dict[str, Any] = event_data.get("data", {}).get("object", {})
         stripe_obj_id = data_object.get("id")
         processed_status = "PROCESSED"
-        matched_tx: Optional[StripeTransaction] = None
+        matched_tx: StripeTransaction | None = None
 
         if event_type == "checkout.session.completed":
             session_id = data_object.get("id")
@@ -317,11 +317,11 @@ class StripePaymentService:
                 payment_status = data_object.get("payment_status")
                 if payment_status == "paid":
                     matched_tx.status = OrderStatus.PAID.value
-                    matched_tx.paid_at = datetime.now(timezone.utc)
+                    matched_tx.paid_at = datetime.now(UTC)
                 else:
                     matched_tx.status = OrderStatus.PENDING_PAYMENT.value
                 matched_tx.payment_intent_id = data_object.get("payment_intent") or matched_tx.payment_intent_id
-                matched_tx.updated_at = datetime.now(timezone.utc)
+                matched_tx.updated_at = datetime.now(UTC)
                 matched_tx.raw_last_response = json.dumps(data_object)
             else:
                 logger.warning("Checkout session completed for unknown order/session: %s", session_id)
@@ -341,14 +341,14 @@ class StripePaymentService:
 
             if matched_tx:
                 matched_tx.status = OrderStatus.PAID.value
-                matched_tx.paid_at = datetime.now(timezone.utc)
+                matched_tx.paid_at = datetime.now(UTC)
                 matched_tx.payment_intent_id = pi_id
                 # Extract payment method details and receipt if available
                 charges = data_object.get("charges", {}).get("data", [])
                 if charges and isinstance(charges, list) and len(charges) > 0:
                     matched_tx.receipt_url = charges[0].get("receipt_url")
                     matched_tx.payment_method = charges[0].get("payment_method_details", {}).get("type") or "card"
-                matched_tx.updated_at = datetime.now(timezone.utc)
+                matched_tx.updated_at = datetime.now(UTC)
                 matched_tx.raw_last_response = json.dumps(data_object)
             else:
                 logger.warning("PaymentIntent succeeded for unknown payment: %s", pi_id)
@@ -370,7 +370,7 @@ class StripePaymentService:
                 matched_tx.status = OrderStatus.FAILED.value
                 last_err = data_object.get("last_payment_error", {})
                 matched_tx.failure_reason = last_err.get("message") or "Payment rejected by Stripe"
-                matched_tx.updated_at = datetime.now(timezone.utc)
+                matched_tx.updated_at = datetime.now(UTC)
                 matched_tx.raw_last_response = json.dumps(data_object)
             else:
                 logger.warning("PaymentIntent failed for unknown payment: %s", pi_id)
@@ -390,7 +390,7 @@ class StripePaymentService:
             is_valid_signature=True,
             processed_status=processed_status,
             raw_payload=raw_body.decode("utf-8", errors="replace"),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         db.add(audit_log)
         db.commit()
@@ -409,7 +409,7 @@ class StripePaymentService:
         self,
         db: Session,
         payment_id: str,
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
     ) -> SyncPaymentResponse:
         """
         Actively queries Stripe polling endpoint to refresh payment state.
@@ -429,16 +429,16 @@ class StripePaymentService:
 
         previous_status = OrderStatus(tx.status)
         current_status = previous_status
-        gateway_data: Dict[str, Any] = {}
+        gateway_data: dict[str, Any] = {}
 
         if tx.payment_type == "checkout_session":
             gateway_data = await self.client.get_checkout_session(tx.stripe_id, correlation_id=correlation_id)
             payment_status = gateway_data.get("payment_status")
             if payment_status == "paid" and previous_status != OrderStatus.PAID:
                 tx.status = OrderStatus.PAID.value
-                tx.paid_at = datetime.now(timezone.utc)
+                tx.paid_at = datetime.now(UTC)
                 tx.payment_intent_id = gateway_data.get("payment_intent") or tx.payment_intent_id
-                tx.updated_at = datetime.now(timezone.utc)
+                tx.updated_at = datetime.now(UTC)
                 tx.raw_last_response = json.dumps(gateway_data)
                 db.commit()
                 db.refresh(tx)
@@ -450,12 +450,12 @@ class StripePaymentService:
             pi_status = gateway_data.get("status")
             if pi_status == "succeeded" and previous_status != OrderStatus.PAID:
                 tx.status = OrderStatus.PAID.value
-                tx.paid_at = datetime.now(timezone.utc)
+                tx.paid_at = datetime.now(UTC)
                 charges = gateway_data.get("charges", {}).get("data", [])
                 if charges and isinstance(charges, list) and len(charges) > 0:
                     tx.receipt_url = charges[0].get("receipt_url")
                     tx.payment_method = charges[0].get("payment_method_details", {}).get("type") or "card"
-                tx.updated_at = datetime.now(timezone.utc)
+                tx.updated_at = datetime.now(UTC)
                 tx.raw_last_response = json.dumps(gateway_data)
                 db.commit()
                 db.refresh(tx)
@@ -463,7 +463,7 @@ class StripePaymentService:
                 logger.info("Order %s updated to PAID via PaymentIntent sync", tx.order_id)
             elif pi_status == "canceled" and previous_status != OrderStatus.CANCELLED:
                 tx.status = OrderStatus.CANCELLED.value
-                tx.updated_at = datetime.now(timezone.utc)
+                tx.updated_at = datetime.now(UTC)
                 db.commit()
                 db.refresh(tx)
                 current_status = OrderStatus.CANCELLED

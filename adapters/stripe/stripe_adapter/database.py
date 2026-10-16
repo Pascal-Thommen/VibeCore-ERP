@@ -2,9 +2,11 @@
 Database engine and session management for Stripe Adapter.
 """
 
-from typing import Generator
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+
 from stripe_adapter.config import settings
 from stripe_adapter.db_models import Base
 

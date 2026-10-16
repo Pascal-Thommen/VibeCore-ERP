@@ -4,7 +4,7 @@ Säule 3 (Sicherheit und Zugriffsschutz) des Software Testing Audit Frameworks.
 """
 
 import hashlib
-import pytest
+
 from pagopar.client import PagoparClient
 
 
@@ -35,7 +35,7 @@ def test_webhook_token_and_signature_verification_valid():
     private_key = "secret_key_123"
     hash_pedido = "6a4f91b0d3e2c7a1884f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
 
-    expected_hash = hashlib.sha1(f"{private_key}{hash_pedido}".encode("utf-8")).hexdigest()
+    expected_hash = hashlib.sha1(f"{private_key}{hash_pedido}".encode()).hexdigest()
     assert PagoparClient.verify_webhook_signature(private_key, hash_pedido, expected_hash) is True
 
 

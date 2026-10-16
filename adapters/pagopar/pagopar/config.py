@@ -3,7 +3,7 @@ Configuration management for Pagopar Payment Gateway Adapter.
 Follows 12-factor principles using Pydantic Settings.
 """
 
-from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -33,12 +33,12 @@ class Settings(BaseSettings):
     )
 
     # API Base URLs
-    pagopar_base_url: Optional[str] = Field(
+    pagopar_base_url: str | None = Field(
         default=None,
         validation_alias="PAGOPAR_BASE_URL",
         description="Override base URL for Pagopar API v2",
     )
-    pagopar_checkout_base_url: Optional[str] = Field(
+    pagopar_checkout_base_url: str | None = Field(
         default=None,
         validation_alias="PAGOPAR_CHECKOUT_BASE_URL",
         description="Override base URL for Pagopar redirect checkout",
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     )
 
     # Adapter Security & Networking
-    adapter_api_key: Optional[str] = Field(
+    adapter_api_key: str | None = Field(
         default=None,
         validation_alias="ADAPTER_API_KEY",
         description="Optional shared secret to secure internal adapter endpoints",

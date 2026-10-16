@@ -4,16 +4,15 @@ Säule 2 (Datenintegrität und Transaktionen) des Software Testing Audit Framewo
 """
 
 from unittest.mock import MagicMock
+
 import httpx
 import pytest
 from sqlalchemy.orm import Session
-
 from stripe_adapter.client import StripeError
 from stripe_adapter.db_models import StripeTransaction
 from stripe_adapter.models import (
     CreateCheckoutSessionRequest,
     CreatePaymentIntentRequest,
-    OrderStatus,
 )
 from stripe_adapter.service import StripePaymentService
 
