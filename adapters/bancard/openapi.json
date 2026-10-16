@@ -1,0 +1,1673 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore Pay: Bancard vPOS & Catastro QR Adapter API",
+    "description": "Enterprise microservice for Paraguayan payment processing via Bancard vPOS 2.0, card tokenization, and dynamic EMVCo Catastro QR in Guaranies (PYG).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Observability"
+        ],
+        "summary": "Liveness and Readiness Probe",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Observability"
+        ],
+        "summary": "Prometheus Metrics Exposition",
+        "operationId": "get_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/single-buy": {
+      "post": {
+        "tags": [
+          "vPOS Payments"
+        ],
+        "summary": "Initialize Single Buy Checkout",
+        "description": "Generates Bancard vPOS 2.0 security token and process_id for embedded payment iframe or redirect.",
+        "operationId": "initialize_single_buy_api_v1_payments_single_buy_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SingleBuyInitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SingleBuyInitResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/cards/new": {
+      "post": {
+        "tags": [
+          "Card Catastro"
+        ],
+        "summary": "Initialize Card Catastro (Registration)",
+        "description": "Requests a secure process token to render the Bancard card tokenization iframe.",
+        "operationId": "initialize_cards_new_api_v1_payments_cards_new_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCatastroRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardCatastroResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/charge": {
+      "post": {
+        "tags": [
+          "vPOS Payments"
+        ],
+        "summary": "Execute Tokenized Card Charge",
+        "description": "Charges a pre-registered card alias token for 1-click or recurring subscription billing.",
+        "operationId": "execute_token_charge_api_v1_payments_charge_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenChargeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenChargeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{shop_process_id}/rollback": {
+      "post": {
+        "tags": [
+          "vPOS Payments"
+        ],
+        "summary": "Rollback / Cancel Payment",
+        "description": "Reverses an authorized or pending transaction with Bancard and updates audit trail.",
+        "operationId": "rollback_payment_api_v1_payments__shop_process_id__rollback_post",
+        "parameters": [
+          {
+            "name": "shop_process_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Process Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest",
+                "default": {
+                  "reason": "Customer cancellation or timeout"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{shop_process_id}": {
+      "get": {
+        "tags": [
+          "vPOS Payments"
+        ],
+        "summary": "Get Transaction & Audit Trail",
+        "operationId": "get_transaction_api_v1_payments__shop_process_id__get",
+        "parameters": [
+          {
+            "name": "shop_process_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Process Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/webhook/bancard": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Bancard Confirmation Callback",
+        "description": "Processes server-to-server webhook confirmation from Bancard vPOS. Validates security token and dispatches signed events.",
+        "operationId": "bancard_confirmation_webhook_api_v1_payments_webhook_bancard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BancardWebhookPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BancardWebhookResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qr/generate": {
+      "post": {
+        "tags": [
+          "Catastro QR"
+        ],
+        "summary": "Generate Dynamic Catastro QR (PYG)",
+        "description": "Constructs an EMVCo dynamic QR code for Paraguay in Guaranies (PYG) with CRC16 and Base64 PNG image.",
+        "operationId": "generate_catastro_qr_api_v1_qr_generate_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatastroQrGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatastroQrGenerateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/qr/{shop_process_id}/status": {
+      "get": {
+        "tags": [
+          "Catastro QR"
+        ],
+        "summary": "Poll Catastro QR Status",
+        "description": "Queries transaction status for clients polling dynamic QR payments.",
+        "operationId": "get_qr_status_api_v1_qr__shop_process_id__status_get",
+        "parameters": [
+          {
+            "name": "shop_process_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Process Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatastroQrStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/dead-letter": {
+      "get": {
+        "tags": [
+          "Resilience"
+        ],
+        "summary": "List Dead-Letter Webhooks",
+        "description": "Lists un-deliverable outbound webhooks queued after exhausted retries.",
+        "operationId": "list_dead_letters_api_v1_webhooks_dead_letter_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeadLetterItem"
+                  },
+                  "title": "Response List Dead Letters Api V1 Webhooks Dead Letter Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/dead-letter/{dead_letter_id}/retry": {
+      "post": {
+        "tags": [
+          "Resilience"
+        ],
+        "summary": "Retry Dead-Letter Delivery",
+        "operationId": "retry_dead_letter_api_v1_webhooks_dead_letter__dead_letter_id__retry_post",
+        "parameters": [
+          {
+            "name": "dead_letter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dead Letter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditLogEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "previous_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Status"
+          },
+          "new_status": {
+            "type": "string",
+            "title": "New Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "new_status",
+          "actor",
+          "created_at"
+        ],
+        "title": "AuditLogEntry"
+      },
+      "BancardWebhookOperation": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response"
+          },
+          "response_code": {
+            "type": "string",
+            "title": "Response Code"
+          },
+          "response_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Description"
+          },
+          "extended_response_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extended Response Description"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "authorization_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorization Number"
+          },
+          "security_information": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Security Information"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "shop_process_id",
+          "amount",
+          "currency",
+          "response_code"
+        ],
+        "title": "BancardWebhookOperation"
+      },
+      "BancardWebhookPayload": {
+        "properties": {
+          "operation": {
+            "$ref": "#/components/schemas/BancardWebhookOperation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "title": "BancardWebhookPayload"
+      },
+      "BancardWebhookResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "transaction_status": {
+            "type": "string",
+            "title": "Transaction Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "shop_process_id",
+          "transaction_status",
+          "message"
+        ],
+        "title": "BancardWebhookResponse"
+      },
+      "CardCatastroRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "User Id",
+            "description": "Unique user or customer identifier"
+          },
+          "card_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Card Id",
+            "description": "Sequential card slot index for user"
+          },
+          "user_cell_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Cell Phone",
+            "description": "Cardholder phone number"
+          },
+          "user_mail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Mail",
+            "description": "Cardholder email address"
+          },
+          "return_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Url",
+            "description": "Redirect URL upon completion"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "card_id"
+        ],
+        "title": "CardCatastroRequest"
+      },
+      "CardCatastroResponse": {
+        "properties": {
+          "process_id": {
+            "type": "string",
+            "title": "Process Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "process_id",
+          "status",
+          "user_id",
+          "card_id"
+        ],
+        "title": "CardCatastroResponse"
+      },
+      "CatastroQrGenerateRequest": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount",
+            "description": "Amount in PYG"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^(PYG)$",
+            "title": "Currency",
+            "default": "PYG"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "Purchasing user ID"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "expires_in_minutes": {
+            "type": "integer",
+            "maximum": 1440.0,
+            "minimum": 1.0,
+            "title": "Expires In Minutes",
+            "default": 15
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "description"
+        ],
+        "title": "CatastroQrGenerateRequest"
+      },
+      "CatastroQrGenerateResponse": {
+        "properties": {
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "qr_payload": {
+            "type": "string",
+            "title": "Qr Payload"
+          },
+          "qr_image_data_uri": {
+            "type": "string",
+            "title": "Qr Image Data Uri"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_process_id",
+          "qr_payload",
+          "qr_image_data_uri",
+          "status",
+          "amount",
+          "currency",
+          "expires_at"
+        ],
+        "title": "CatastroQrGenerateResponse"
+      },
+      "CatastroQrStatusResponse": {
+        "properties": {
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "payment_method": {
+            "type": "string",
+            "title": "Payment Method"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "authorization_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorization Number"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_process_id",
+          "status",
+          "amount",
+          "currency",
+          "payment_method",
+          "updated_at"
+        ],
+        "title": "CatastroQrStatusResponse"
+      },
+      "DeadLetterItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_url": {
+            "type": "string",
+            "title": "Target Url"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "payload": {
+            "type": "string",
+            "title": "Payload"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt At"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "target_url",
+          "event_type",
+          "payload",
+          "attempts",
+          "status",
+          "created_at"
+        ],
+        "title": "DeadLetterItem"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "environment": {
+            "type": "string",
+            "title": "Environment"
+          },
+          "pending_transactions_count": {
+            "type": "integer",
+            "title": "Pending Transactions Count"
+          },
+          "dead_letter_count": {
+            "type": "integer",
+            "title": "Dead Letter Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "version",
+          "database",
+          "environment",
+          "pending_transactions_count",
+          "dead_letter_count"
+        ],
+        "title": "HealthResponse"
+      },
+      "RollbackRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "default": "Customer cancellation or timeout"
+          }
+        },
+        "type": "object",
+        "title": "RollbackRequest"
+      },
+      "RollbackResponse": {
+        "properties": {
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "response_code": {
+            "type": "string",
+            "title": "Response Code"
+          },
+          "response_description": {
+            "type": "string",
+            "title": "Response Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_process_id",
+          "status",
+          "response_code",
+          "response_description"
+        ],
+        "title": "RollbackResponse"
+      },
+      "SingleBuyInitRequest": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount",
+            "description": "Transaction amount (e.g. 45000.00)"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^(PYG|USD)$",
+            "title": "Currency",
+            "description": "ISO 4217 currency",
+            "default": "PYG"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Description",
+            "description": "Item or order description"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "Client or user identifier"
+          },
+          "return_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Url",
+            "description": "Frontend success redirect URL"
+          },
+          "cancel_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Url",
+            "description": "Frontend cancel redirect URL"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key",
+            "description": "Unique client idempotency key"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "Metadata dictionary"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Custom application attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "description"
+        ],
+        "title": "SingleBuyInitRequest"
+      },
+      "SingleBuyInitResponse": {
+        "properties": {
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "process_id": {
+            "type": "string",
+            "title": "Process Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "checkout_url": {
+            "type": "string",
+            "title": "Checkout Url"
+          },
+          "script_url": {
+            "type": "string",
+            "title": "Script Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_process_id",
+          "process_id",
+          "token",
+          "status",
+          "amount",
+          "currency",
+          "checkout_url",
+          "script_url"
+        ],
+        "title": "SingleBuyInitResponse"
+      },
+      "TokenChargeRequest": {
+        "properties": {
+          "alias_token": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Alias Token",
+            "description": "Stored card token from catastro"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount",
+            "description": "Charge amount"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^(PYG|USD)$",
+            "title": "Currency",
+            "default": "PYG"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "user_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias_token",
+          "amount",
+          "description",
+          "user_id"
+        ],
+        "title": "TokenChargeRequest"
+      },
+      "TokenChargeResponse": {
+        "properties": {
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "response_code": {
+            "type": "string",
+            "title": "Response Code"
+          },
+          "response_description": {
+            "type": "string",
+            "title": "Response Description"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "authorization_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorization Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_process_id",
+          "status",
+          "response_code",
+          "response_description"
+        ],
+        "title": "TokenChargeResponse"
+      },
+      "TransactionDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "shop_process_id": {
+            "type": "integer",
+            "title": "Shop Process Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "payment_method": {
+            "type": "string",
+            "title": "Payment Method"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "response_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Code"
+          },
+          "response_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Description"
+          },
+          "ticket_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Number"
+          },
+          "authorization_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorization Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "audit_logs": {
+            "items": {
+              "$ref": "#/components/schemas/AuditLogEntry"
+            },
+            "type": "array",
+            "title": "Audit Logs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "shop_process_id",
+          "amount",
+          "currency",
+          "payment_method",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TransactionDetailResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
