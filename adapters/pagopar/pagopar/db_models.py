@@ -3,7 +3,8 @@ SQLAlchemy ORM models for Pagopar transaction persistence and audit log.
 Provides ACID guarantees, idempotency tracking and replay defense.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -37,13 +38,13 @@ class PagoparTransaction(Base):
 
     created_at = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
     paid_at = Column(DateTime, nullable=True)
@@ -69,6 +70,6 @@ class PagoparWebhookLog(Base):
     raw_payload = Column(Text, nullable=False)
     created_at = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )

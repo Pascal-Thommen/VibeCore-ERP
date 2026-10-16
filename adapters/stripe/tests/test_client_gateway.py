@@ -5,7 +5,6 @@ Säule 1 (Resilienz und Netzwerkstabilität) des Software Testing Audit Framewor
 
 import httpx
 import pytest
-
 from stripe_adapter.client import (
     StripeClient,
     StripeGatewayError,

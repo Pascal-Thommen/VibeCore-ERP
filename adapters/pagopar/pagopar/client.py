@@ -8,8 +8,10 @@ import asyncio
 import hashlib
 import hmac
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import httpx
+
 from pagopar.config import Settings, settings
 from pagopar.models import BuyerModel, OrderItemModel
 
@@ -18,17 +20,15 @@ logger = logging.getLogger("pagopar.client")
 
 class PagoparError(Exception):
     """Base exception for all Pagopar adapter operations."""
-    pass
 
 
 class PagoparSignatureError(PagoparError):
     """Raised when cryptographic signature validation fails."""
-    pass
 
 
 class PagoparGatewayError(PagoparError):
     """Raised when the Pagopar gateway rejects a request or returns an error response."""
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Any = None):
+    def __init__(self, message: str, status_code: int | None = None, details: Any = None):
         super().__init__(message)
         self.status_code = status_code
         self.details = details
@@ -36,23 +36,21 @@ class PagoparGatewayError(PagoparError):
 
 class PagoparNetworkTimeoutError(PagoparError):
     """Raised when Pagopar network requests exceed configured timeouts."""
-    pass
 
 
 class PagoparOrderNotFoundError(PagoparError):
     """Raised when a requested order is not found."""
-    pass
 
 
 
 class PagoparClient:
     """Enterprise client for Pagopar REST API operations."""
 
-    def __init__(self, custom_settings: Optional[Settings] = None):
+    def __init__(self, custom_settings: Settings | None = None):
         self.cfg = custom_settings or settings
 
     @staticmethod
-    def compute_order_token(private_key: str, order_id: Union[str, int], amount: Union[float, int]) -> str:
+    def compute_order_token(private_key: str, order_id: str | int, amount: float) -> str:
         """
         Computes SHA-1 hash for initiating a transaction:
         token = SHA1(private_key + id_pedido_comercio + str(float(monto_total)))
@@ -94,10 +92,10 @@ class PagoparClient:
         monto_total: float,
         description: str,
         buyer: BuyerModel,
-        items: List[OrderItemModel],
-        fecha_maxima_pago: Optional[str] = None,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        items: list[OrderItemModel],
+        fecha_maxima_pago: str | None = None,
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Initiates a transaction via Pagopar API v2 POST /api/comercios/2.0/iniciar-transaccion.
         Applies exponential backoff retries on transient connection failures.
@@ -145,7 +143,7 @@ class PagoparClient:
         if correlation_id:
             headers["X-Correlation-ID"] = correlation_id
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(1, self.cfg.max_retries + 1):
             try:
                 async with httpx.AsyncClient(timeout=self.cfg.request_timeout_seconds) as client:
@@ -219,8 +217,8 @@ class PagoparClient:
     async def poll_order_status(
         self,
         pagopar_hash: str,
-        correlation_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Polls Pagopar API v1.1 POST /api/pedidos/1.1/traer to inspect transaction state.
         Serves as resilience fallback when webhook delivery is delayed or dropped.

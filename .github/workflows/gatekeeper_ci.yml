@@ -1,0 +1,145 @@
+name: Gatekeeper CI & Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zero-mock-audit:
+    name: 🛡️ Zero-Mock & Architecture Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Zero-Mock & Architecture Audit
+        run: |
+          python scripts/audit_zero_mock.py --github-summary
+
+      - name: Run Audit Tool Self-Tests
+        run: |
+          pip install --upgrade pip
+          pip install pytest
+          pytest -v tests/test_audit_zero_mock.py
+
+  linter:
+    name: 🔍 Ruff Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: |
+          pip install --upgrade pip
+          pip install "ruff>=0.8,<1"
+
+      - name: Run Ruff Lint Across Codebase
+        run: |
+          ruff check .
+
+  test-backend:
+    name: 🧪 Finance Core Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SDK & Backend Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e sdk
+          pip install -e "backend[dev]"
+
+      - name: Run Pytest Backend
+        run: |
+          cd backend
+          pytest -v tests
+
+  test-adapters:
+    name: 🔌 Adapter Tests (${{ matrix.adapter }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        adapter: [auth, pagopar, stripe, storage, sifen]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e sdk
+          if [ -f "adapters/${{ matrix.adapter }}/requirements.txt" ]; then
+            pip install -r "adapters/${{ matrix.adapter }}/requirements.txt"
+          fi
+          if [ -f "adapters/${{ matrix.adapter }}/pyproject.toml" ]; then
+            pip install -e "adapters/${{ matrix.adapter }}[dev]" || pip install -e "adapters/${{ matrix.adapter }}"
+          fi
+          pip install pytest pytest-asyncio pytest-cov httpx moto[s3]
+
+      - name: Run Pytest
+        run: |
+          cd "adapters/${{ matrix.adapter }}"
+          PYTHONPATH=. pytest -v tests
+
+  gatekeeper-gate:
+    name: 🏆 Gatekeeper Quality Gate
+    runs-on: ubuntu-latest
+    needs: [zero-mock-audit, linter, test-backend, test-adapters]
+    if: always()
+    steps:
+      - name: Evaluate Quality Gate Results
+        run: |
+          echo "## 🏆 Gatekeeper CI Evaluation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Zero-Mock & Architecture Audit | ${{ needs.zero-mock-audit.result == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruff Linter | ${{ needs.linter.result == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Finance Core Tests | ${{ needs.test-backend.result == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Adapter Microservices Tests | ${{ needs.test-adapters.result == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.zero-mock-audit.result }}" != "success" ] || \
+             [ "${{ needs.linter.result }}" != "success" ] || \
+             [ "${{ needs.test-backend.result }}" != "success" ] || \
+             [ "${{ needs.test-adapters.result }}" != "success" ]; then
+            echo "> **Gatekeeper Verdict**: ⛔ **REJECTED**" >> $GITHUB_STEP_SUMMARY
+            echo "> Automated verification detected failures. PR merge blocked." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "> **Gatekeeper Verdict**: 🟢 **PASSED**" >> $GITHUB_STEP_SUMMARY
+            echo "> All automated tests, linters, and Zero-Mock audits passed. Ready for Gatekeeper review." >> $GITHUB_STEP_SUMMARY
+          fi

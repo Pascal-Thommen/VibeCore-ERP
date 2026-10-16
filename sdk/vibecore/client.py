@@ -63,7 +63,9 @@ class CoreClient:
 
     def list_journal_entries(self, offset: int = 0, limit: int = 100) -> list[dict]:
         """List journal entries."""
-        response = self._client.get("/api/v1/journal-entries", params={"offset": offset, "limit": limit})
+        response = self._client.get(
+            "/api/v1/journal-entries", params={"offset": offset, "limit": limit}
+        )
         response.raise_for_status()
         return response.json()
 

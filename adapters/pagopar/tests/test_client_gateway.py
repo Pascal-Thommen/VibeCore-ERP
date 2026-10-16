@@ -10,7 +10,6 @@ from pagopar.client import (
     PagoparGatewayError,
     PagoparNetworkTimeoutError,
 )
-from pagopar.config import Settings
 from pagopar.models import BuyerModel, DocumentType, OrderItemModel
 
 

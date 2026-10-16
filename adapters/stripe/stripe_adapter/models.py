@@ -3,9 +3,10 @@ Pydantic v2 schemas and data transfer objects for Stripe Adapter.
 Harmonized with VibeCore ERP Multi-Gateway Payment Standards.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -19,13 +20,13 @@ class OrderStatus(str, Enum):
 
 
 # Currencies with 0 decimal places according to ISO 4217 and Stripe documentation
-ZERO_DECIMAL_CURRENCIES: Set[str] = {
+ZERO_DECIMAL_CURRENCIES: set[str] = {
     "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW",
     "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
 }
 
 # Currencies with 3 decimal places
-THREE_DECIMAL_CURRENCIES: Set[str] = {
+THREE_DECIMAL_CURRENCIES: set[str] = {
     "BHD", "JOD", "KWD", "OMR", "TND",
 }
 
@@ -59,8 +60,8 @@ class LineItemModel(BaseModel):
     name: str = Field(description="Product or service name")
     amount: float = Field(ge=0, description="Price per unit in human decimal currency")
     quantity: int = Field(default=1, ge=1, description="Quantity")
-    currency: Optional[str] = Field(default=None, description="Currency ISO code")
-    description: Optional[str] = Field(default=None, description="Detailed item description")
+    currency: str | None = Field(default=None, description="Currency ISO code")
+    description: str | None = Field(default=None, description="Detailed item description")
 
 
 class CreateCheckoutSessionRequest(BaseModel):
@@ -71,11 +72,11 @@ class CreateCheckoutSessionRequest(BaseModel):
     currency: str = Field(default="USD", description="Currency ISO 4217 code (e.g. USD, EUR, PYG)")
     description: str = Field(description="Summary description of purchase shown to customer")
     customer_email: str = Field(description="Customer email address for notifications and receipt")
-    success_url: Optional[str] = Field(default=None, description="Redirect URL after successful payment")
-    cancel_url: Optional[str] = Field(default=None, description="Redirect URL if customer cancels")
-    items: Optional[List[LineItemModel]] = Field(default=None, description="Optional itemized line items")
-    meta: Optional[Dict[str, Any]] = Field(default=None, description="Metadata dictionary")
-    custom_data: Optional[Dict[str, Any]] = Field(default=None, description="Custom properties dictionary")
+    success_url: str | None = Field(default=None, description="Redirect URL after successful payment")
+    cancel_url: str | None = Field(default=None, description="Redirect URL if customer cancels")
+    items: list[LineItemModel] | None = Field(default=None, description="Optional itemized line items")
+    meta: dict[str, Any] | None = Field(default=None, description="Metadata dictionary")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Custom properties dictionary")
 
     @field_validator("currency")
     @classmethod
@@ -98,11 +99,11 @@ class CreatePaymentIntentRequest(BaseModel):
     amount: float = Field(gt=0, description="Payment amount in human decimal units")
     currency: str = Field(default="USD", description="Currency ISO 4217 code (e.g. USD, EUR, PYG)")
     description: str = Field(description="Payment description")
-    customer_email: Optional[str] = Field(default=None, description="Customer email address")
-    payment_method: Optional[str] = Field(default=None, description="Optional specific Stripe payment method ID")
+    customer_email: str | None = Field(default=None, description="Customer email address")
+    payment_method: str | None = Field(default=None, description="Optional specific Stripe payment method ID")
     confirm: bool = Field(default=False, description="Whether to confirm immediately if payment_method provided")
-    meta: Optional[Dict[str, Any]] = Field(default=None, description="Metadata dictionary")
-    custom_data: Optional[Dict[str, Any]] = Field(default=None, description="Custom properties dictionary")
+    meta: dict[str, Any] | None = Field(default=None, description="Metadata dictionary")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Custom properties dictionary")
 
     @field_validator("currency")
     @classmethod
@@ -116,21 +117,21 @@ class PaymentResponse(BaseModel):
     order_id: str
     stripe_id: str
     payment_type: str = Field(description="'checkout_session' or 'payment_intent'")
-    checkout_url: Optional[str] = None
-    client_secret: Optional[str] = None
+    checkout_url: str | None = None
+    client_secret: str | None = None
     status: OrderStatus
     amount: float
     amount_cents: int
     currency: str
-    customer_email: Optional[str] = None
+    customer_email: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    paid_at: Optional[datetime] = None
-    payment_method: Optional[str] = None
-    receipt_url: Optional[str] = None
-    details: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
-    custom_data: Optional[Dict[str, Any]] = None
+    updated_at: datetime | None = None
+    paid_at: datetime | None = None
+    payment_method: str | None = None
+    receipt_url: str | None = None
+    details: str | None = None
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
 
 
 class HarmonizedCoreEvent(BaseModel):
@@ -141,18 +142,18 @@ class HarmonizedCoreEvent(BaseModel):
     gateway: str = "stripe"
     order_id: str
     payment_id: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
     amount: float
     currency: str
     amount_in_cents: int
     status: str
-    paid_at: Optional[str] = None
-    payment_method: Optional[str] = None
-    receipt_url: Optional[str] = None
-    failure_reason: Optional[str] = None
-    customer_email: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
-    custom_data: Optional[Dict[str, Any]] = None
+    paid_at: str | None = None
+    payment_method: str | None = None
+    receipt_url: str | None = None
+    failure_reason: str | None = None
+    customer_email: str | None = None
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
 
 
 class SyncPaymentResponse(BaseModel):
@@ -163,8 +164,8 @@ class SyncPaymentResponse(BaseModel):
     previous_status: OrderStatus
     current_status: OrderStatus
     synced: bool
-    gateway_response: Optional[Dict[str, Any]] = None
-    details: Optional[str] = None
+    gateway_response: dict[str, Any] | None = None
+    details: str | None = None
 
 
 class WebhookProcessResult(BaseModel):
@@ -173,7 +174,7 @@ class WebhookProcessResult(BaseModel):
     status: str
     event_id: str
     event_type: str
-    order_id: Optional[str] = None
-    payment_id: Optional[str] = None
+    order_id: str | None = None
+    payment_id: str | None = None
     processed: bool
-    details: Optional[str] = None
+    details: str | None = None

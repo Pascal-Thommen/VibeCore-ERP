@@ -3,13 +3,13 @@ Tests for Stripe Webhook cryptographic security, replay protection, and duplicat
 Säule 2 (Idempotenz) und Säule 3 (Sicherheit) des Software Testing Audit Frameworks.
 """
 
-from datetime import datetime, timezone
 import json
 import time
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-
 from stripe_adapter.client import StripeClient
 from stripe_adapter.db_models import StripeTransaction, StripeWebhookLog
 from stripe_adapter.models import OrderStatus
@@ -27,8 +27,8 @@ def existing_transaction(db_session: Session) -> StripeTransaction:
         currency="USD",
         customer_email="wh_buyer@example.com",
         description="Webhook Test Order",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(tx)
     db_session.commit()
@@ -49,8 +49,8 @@ def existing_intent_transaction(db_session: Session) -> StripeTransaction:
         currency="USD",
         customer_email="wh_buyer2@example.com",
         description="Intent Webhook Test",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     db_session.add(tx)
     db_session.commit()
@@ -234,7 +234,7 @@ def test_webhook_idempotency_duplicate_event(
     # Verify both log rows exist: one PROCESSED, one DUPLICATE_IGNORED
     logs = db_session.query(StripeWebhookLog).filter(StripeWebhookLog.event_id == "evt_duplicate_test_4").all()
     assert len(logs) == 2
-    statuses = [l.processed_status for l in logs]
+    statuses = [log_item.processed_status for log_item in logs]
     assert "PROCESSED" in statuses
     assert "DUPLICATE_IGNORED" in statuses
 

@@ -4,9 +4,7 @@ Tests for cryptographic signature verification, replay protection, and cent curr
 
 import hashlib
 import hmac
-import json
 import time
-import pytest
 
 from stripe_adapter.client import StripeClient
 from stripe_adapter.models import CurrencyHelper
@@ -20,7 +18,7 @@ def test_compute_webhook_signature():
 
     sig = StripeClient.compute_webhook_signature(payload, TEST_SECRET, timestamp)
 
-    expected_signed = f"{timestamp}.".encode("utf-8") + payload
+    expected_signed = f"{timestamp}.".encode() + payload
     expected = hmac.new(TEST_SECRET.encode("utf-8"), expected_signed, hashlib.sha256).hexdigest()
 
     assert sig == expected

@@ -26,7 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.financial_types import EXCHANGE_RATE_NUMERIC, MONEY_NUMERIC
-from app.db.base import Base, CORE_SCHEMA
+from app.db.base import CORE_SCHEMA, Base
 from app.models.core_models import CoreModelMixin
 
 

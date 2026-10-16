@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = [
+    "E501",  # Line length is handled by ruff format / soft limit
+    "UP042", # StrEnum recommendation; (str, Enum) preserved for Pydantic v2 serialization compatibility
+]

@@ -13,5 +13,8 @@ These instructions are binding for humans and AI agents:
 4. Financial work created by AI remains `DRAFT` until an eligible human approves it.
 5. Never implement custom cryptography, hashing, XML-signing, or transport
    protocols where an established library exists.
+6. Automated testing and zero-mock verification run via GitHub Actions
+   (`.github/workflows/gatekeeper_ci.yml`). See [docs/GATEKEEPER_CI.md](docs/GATEKEEPER_CI.md).
+   Gatekeeper checks CI completion before architectural evaluation.
 
 When an ADR conflicts with a README or implementation convenience, the ADR wins.

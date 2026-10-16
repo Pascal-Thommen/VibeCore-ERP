@@ -1,4 +1,4 @@
-from app.db.base import Base, CORE_SCHEMA
+from app.db.base import CORE_SCHEMA, Base
 from app.models import Account, Document, DocumentItem, Partner, Product, Tax
 
 

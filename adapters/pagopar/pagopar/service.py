@@ -3,11 +3,12 @@ Business logic and persistence orchestration for Pagopar Adapter.
 Guarantees ACID transactions, strict idempotency, and defense against duplicate processing.
 """
 
-from datetime import datetime, timezone
 import json
 import logging
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
+
 from pagopar.client import (
     PagoparClient,
     PagoparError,
@@ -34,8 +35,8 @@ class PagoparPaymentService:
 
     def __init__(
         self,
-        client: Optional[PagoparClient] = None,
-        custom_settings: Optional[Settings] = None,
+        client: PagoparClient | None = None,
+        custom_settings: Settings | None = None,
     ):
         self.cfg = custom_settings or settings
         self.client = client or PagoparClient(self.cfg)
@@ -60,8 +61,8 @@ class PagoparPaymentService:
         self,
         db: Session,
         request: CreateOrderRequest,
-        idempotency_key: Optional[str] = None,
-        correlation_id: Optional[str] = None,
+        idempotency_key: str | None = None,
+        correlation_id: str | None = None,
     ) -> OrderResponse:
         """
         Creates an order with Pagopar API v2 and records it in the local transactional store.
@@ -120,8 +121,8 @@ class PagoparPaymentService:
             buyer_name=request.comprador.nombre,
             description=request.descripcion_resumen,
             checkout_url=checkout_url,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             raw_order_payload=request.model_dump_json(),
             raw_last_response=json.dumps(raw_resp),
         )
@@ -141,7 +142,7 @@ class PagoparPaymentService:
         self,
         db: Session,
         payload: PagoparWebhookPayload,
-        raw_payload_str: Optional[str] = None,
+        raw_payload_str: str | None = None,
     ) -> WebhookProcessResult:
         """
         Validates cryptographically and idempotently processes Pagopar payment notifications.
@@ -179,7 +180,7 @@ class PagoparPaymentService:
                     amount=float(item.monto),
                     processed_status="SIGNATURE_FAILED",
                     raw_payload=raw_payload_str or json.dumps(item.model_dump()),
-                    created_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
                 )
                 db.add(log_entry)
                 db.commit()
@@ -190,7 +191,7 @@ class PagoparPaymentService:
             # Step B: Idempotency check against duplicate webhook events
             duplicate_check = db.query(PagoparWebhookLog).filter(
                 PagoparWebhookLog.hash_pedido == item.hash_pedido,
-                PagoparWebhookLog.is_valid_signature == True,
+                PagoparWebhookLog.is_valid_signature.is_(True),
                 PagoparWebhookLog.processed_status == "PROCESSED",
             )
             if item.identificador_pago is not None:
@@ -214,7 +215,7 @@ class PagoparPaymentService:
                     amount=float(item.monto),
                     processed_status="DUPLICATE_IGNORED",
                     raw_payload=raw_payload_str or json.dumps(item.model_dump()),
-                    created_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
                 )
                 db.add(duplicate_log)
                 db.commit()
@@ -236,12 +237,12 @@ class PagoparPaymentService:
             if tx:
                 if item.pagado:
                     tx.status = OrderStatus.PAID.value
-                    tx.paid_at = datetime.now(timezone.utc)
+                    tx.paid_at = datetime.now(UTC)
                     tx.payment_method = item.forma_pago or "Pagopar"
                     tx.receipt_number = item.numero_comprobante
                 else:
                     tx.status = OrderStatus.FAILED.value
-                tx.updated_at = datetime.now(timezone.utc)
+                tx.updated_at = datetime.now(UTC)
                 tx.raw_last_response = json.dumps(item.model_dump())
             else:
                 logger.warning("Webhook received for unknown transaction hash: %s", item.hash_pedido)
@@ -258,7 +259,7 @@ class PagoparPaymentService:
                 amount=float(item.monto),
                 processed_status=processed_status,
                 raw_payload=raw_payload_str or json.dumps(item.model_dump()),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             db.add(audit_log)
             db.commit()
@@ -280,7 +281,7 @@ class PagoparPaymentService:
         self,
         db: Session,
         order_id: str,
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
     ) -> SyncOrderResponse:
         """
         Actively queries Pagopar polling endpoint to refresh order state.
@@ -301,9 +302,9 @@ class PagoparPaymentService:
 
         if is_paid and previous_status != OrderStatus.PAID:
             tx.status = OrderStatus.PAID.value
-            tx.paid_at = datetime.now(timezone.utc)
+            tx.paid_at = datetime.now(UTC)
             tx.payment_method = poll_res.get("forma_pago") or tx.payment_method or "Pagopar"
-            tx.updated_at = datetime.now(timezone.utc)
+            tx.updated_at = datetime.now(UTC)
             tx.raw_last_response = json.dumps(poll_res.get("raw_response", {}))
             db.commit()
             db.refresh(tx)

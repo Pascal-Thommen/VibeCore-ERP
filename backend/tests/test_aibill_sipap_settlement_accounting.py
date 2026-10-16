@@ -6,19 +6,18 @@ for AIBill Monthly Value Pool Settlement and SIPAP Developer Payout Accounting.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from decimal import Decimal
+from pathlib import Path
 from uuid import uuid4
-import pytest
-from pydantic import ValidationError
 
 # Ensure SDK is importable
 sdk_path = Path(__file__).resolve().parents[2] / "sdk"
 if str(sdk_path) not in sys.path:
     sys.path.insert(0, str(sdk_path))
 
-from app.schemas.accounting_schemas import JournalEntryCreate, JournalLineCreate
-from vibecore.client import CoreClient
+from vibecore.client import CoreClient  # noqa: E402
+
+from app.schemas.accounting_schemas import JournalEntryCreate  # noqa: E402
 
 
 def test_aibill_developer_pool_accrual_schema_validation() -> None:
@@ -95,13 +94,18 @@ def test_aibill_sipap_bank_payout_schema_validation_and_reference() -> None:
         "lines": [
             {
                 "account_id": dev_liability_account_id,
-                "description": f"Entlastung Verbindlichkeit via SIPAP Ref {sipap_reference} fuer Carlos Martinez",
+                "description": (
+                    f"Entlastung Verbindlichkeit via SIPAP Ref {sipap_reference} "
+                    "fuer Carlos Martinez"
+                ),
                 "debit": "95765.625000",
                 "credit": "0",
             },
             {
                 "account_id": sipap_bank_account_id,
-                "description": f"Bankabgang SIPAP Ueberweisung Ref {sipap_reference} an Carlos Martinez",
+                "description": (
+                    f"Bankabgang SIPAP Ueberweisung Ref {sipap_reference} an Carlos Martinez"
+                ),
                 "debit": "0",
                 "credit": "95765.625000",
             },
@@ -137,7 +141,10 @@ def test_aibill_sipap_bank_payout_with_10_percent_retencion_autofactura_schema_v
     payload = {
         "created_by_actor": "AIBILL_SYSTEM",
         "entry_date": "2026-11-01",
-        "description": f"SIPAP Entwicklerauszahlung an Maria Benitez / Ref: {sipap_reference} [Autofactura {autofactura_doc} mit 10% Retencion]",
+        "description": (
+            f"SIPAP Entwicklerauszahlung an Maria Benitez / Ref: {sipap_reference} "
+            f"[Autofactura {autofactura_doc} mit 10% Retencion]"
+        ),
         "reference": sipap_reference,
         "currency_code": "PYG",
         "functional_currency_code": "PYG",
@@ -145,19 +152,27 @@ def test_aibill_sipap_bank_payout_with_10_percent_retencion_autofactura_schema_v
         "lines": [
             {
                 "account_id": dev_liability_account_id,
-                "description": f"Entlastung Verbindlichkeit via SIPAP Ref {sipap_reference} fuer Maria Benitez",
+                "description": (
+                    f"Entlastung Verbindlichkeit via SIPAP Ref {sipap_reference} "
+                    "fuer Maria Benitez"
+                ),
                 "debit": "100000.000000",
                 "credit": "0",
             },
             {
                 "account_id": sipap_bank_account_id,
-                "description": f"Bankabgang SIPAP Ueberweisung (90%) Ref {sipap_reference} an Maria Benitez",
+                "description": (
+                    f"Bankabgang SIPAP Ueberweisung (90%) Ref {sipap_reference} an Maria Benitez"
+                ),
                 "debit": "0",
                 "credit": "90000.000000",
             },
             {
                 "account_id": dnit_retention_account_id,
-                "description": f"Steuereinbehalt 10% DNIT Retenciones por Pagar fuer Maria Benitez Autofactura {autofactura_doc}",
+                "description": (
+                    "Steuereinbehalt 10% DNIT Retenciones por Pagar fuer Maria Benitez "
+                    f"Autofactura {autofactura_doc}"
+                ),
                 "debit": "0",
                 "credit": "10000.000000",
             },

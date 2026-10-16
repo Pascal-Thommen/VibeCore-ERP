@@ -8,12 +8,13 @@ import time
 
 import jwt
 import pytest
-from app.config import Settings
-from app.main import app
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from jwt.algorithms import RSAAlgorithm
+
+from app.config import Settings
+from app.main import app
 
 
 @pytest.fixture(scope="session")
