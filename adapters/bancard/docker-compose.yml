@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  bancard-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-bancard-adapter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - BANCARD_PUBLIC_KEY=${BANCARD_PUBLIC_KEY:-test_public_key}
+      - BANCARD_PRIVATE_KEY=${BANCARD_PRIVATE_KEY:-test_private_key}
+      - BANCARD_ENVIRONMENT=${BANCARD_ENVIRONMENT:-staging}
+      - BANCARD_BASE_URL=${BANCARD_BASE_URL:-https://vpos.infonet.com.py:8888}
+      - VIBECORE_WEBHOOK_SECRET=${VIBECORE_WEBHOOK_SECRET:-vibecore_pay_webhook_secret_key_2026}
+      - DATABASE_URL=sqlite:////data/bancard_transactions.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - bancard_data:/data
+
+volumes:
+  bancard_data:

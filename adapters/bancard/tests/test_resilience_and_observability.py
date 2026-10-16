@@ -86,8 +86,7 @@ def test_metrics_recording_and_prom_exposition():
     assert "bancard_dead_letter_total 0" in updated_text
 
 
-def test_no_private_keys_in_logs_or_audit(db):
-    service = BancardPaymentService()
+def test_no_private_keys_in_logs_or_audit(db, service):
     req = SingleBuyInitRequest(
         amount=Decimal("45000.00"),
         currency="PYG",

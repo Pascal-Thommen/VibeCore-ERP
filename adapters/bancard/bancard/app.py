@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from bancard.client import BancardGatewayError
 from bancard.config import settings
 from bancard.constants import HEADER_CORRELATION_ID, HEADER_IDEMPOTENCY_KEY, TransactionStatus
 from bancard.database import BancardTransaction, DeadLetterWebhook, get_db, init_db
@@ -150,6 +151,9 @@ def initialize_single_buy(
 
     try:
         return service.initialize_single_buy(db=db, req=req)
+    except BancardGatewayError as ge:
+        logger.error("Bancard gateway error during single_buy: %s", str(ge))
+        raise HTTPException(status_code=ge.status_code, detail=str(ge))
     except Exception as exc:
         logger.exception("Failed to initialize single_buy: %s", str(exc))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -169,6 +173,9 @@ def initialize_cards_new(
 ):
     try:
         return service.initialize_card_catastro(db=db, req=req)
+    except BancardGatewayError as ge:
+        logger.error("Bancard gateway error during cards_new: %s", str(ge))
+        raise HTTPException(status_code=ge.status_code, detail=str(ge))
     except Exception as exc:
         logger.exception("Failed to initialize cards_new: %s", str(exc))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -191,6 +198,9 @@ def execute_token_charge(
 
     try:
         return service.execute_token_charge(db=db, req=req)
+    except BancardGatewayError as ge:
+        logger.error("Bancard gateway error during token charge: %s", str(ge))
+        raise HTTPException(status_code=ge.status_code, detail=str(ge))
     except Exception as exc:
         logger.exception("Failed to execute token charge: %s", str(exc))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -212,6 +222,9 @@ def rollback_payment(
         return service.execute_rollback(db=db, shop_process_id=shop_process_id, reason=req.reason)
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except BancardGatewayError as ge:
+        logger.error("Bancard gateway rollback rejected or failed: %s", str(ge))
+        raise HTTPException(status_code=ge.status_code, detail=str(ge))
     except Exception as exc:
         logger.exception("Failed to execute rollback: %s", str(exc))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))

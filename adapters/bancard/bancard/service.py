@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from bancard.client import BancardGatewayClient
+from bancard.client import BancardGatewayClient, BancardGatewayError
 from bancard.config import settings
 from bancard.constants import (
     CURRENCY_CODE_PYG,
@@ -98,23 +98,21 @@ class BancardPaymentService:
             req.currency,
         )
 
-        # Call gateway (or fallback in offline/staging sandbox)
-        process_id = f"proc_{shop_process_id}_{int(time.time())}"
-        try:
-            gw_resp = self.client.single_buy(
-                shop_process_id=shop_process_id,
-                amount=amount_dec,
-                currency=req.currency,
-                description=req.description,
-                return_url=req.return_url,
-                cancel_url=req.cancel_url,
-            )
-            if gw_resp.get("process_id"):
-                process_id = gw_resp["process_id"]
-        except Exception as exc:
-            logger.warning(
-                "Gateway call raised exception; generating resilient session handle for staging/offline: %s",
-                str(exc),
+        # Call gateway (strict Zero Mock: require genuine process_id from Bancard)
+        gw_resp = self.client.single_buy(
+            shop_process_id=shop_process_id,
+            amount=amount_dec,
+            currency=req.currency,
+            description=req.description,
+            return_url=req.return_url,
+            cancel_url=req.cancel_url,
+        )
+        process_id = gw_resp.get("process_id")
+        if not process_id:
+            raise BancardGatewayError(
+                f"Bancard gateway did not return a valid process_id: {gw_resp}",
+                response_data=gw_resp,
+                status_code=502,
             )
 
         tx_id = str(uuid.uuid4())
@@ -167,20 +165,21 @@ class BancardPaymentService:
         )
 
     def initialize_card_catastro(self, db: Session, req: CardCatastroRequest) -> CardCatastroResponse:
-        """Initialize card catastro (tokenization) session."""
-        process_id = f"card_proc_{req.user_id}_{req.card_id}_{int(time.time())}"
-        try:
-            gw_resp = self.client.cards_new(
-                card_id=req.card_id,
-                user_id=req.user_id,
-                user_cell_phone=req.user_cell_phone,
-                user_mail=req.user_mail,
-                return_url=req.return_url,
+        """Initialize card catastro (tokenization) session with Bancard."""
+        gw_resp = self.client.cards_new(
+            card_id=req.card_id,
+            user_id=req.user_id,
+            user_cell_phone=req.user_cell_phone,
+            user_mail=req.user_mail,
+            return_url=req.return_url,
+        )
+        process_id = gw_resp.get("process_id")
+        if not process_id:
+            raise BancardGatewayError(
+                f"Bancard cards_new did not return a valid process_id: {gw_resp}",
+                response_data=gw_resp,
+                status_code=502,
             )
-            if gw_resp.get("process_id"):
-                process_id = gw_resp["process_id"]
-        except Exception as exc:
-            logger.warning("Gateway cards_new exception; using local session: %s", str(exc))
 
         return CardCatastroResponse(
             process_id=process_id,
@@ -229,12 +228,7 @@ class BancardPaymentService:
         db.add(tx)
         db.flush()
 
-        # Call gateway charge
-        resp_code = RESPONSE_CODE_APPROVED
-        resp_desc = "Transaccion aprobada"
-        ticket = f"tkt_{int(time.time())}"
-        auth_no = f"auth_{shop_process_id}"
-
+        # Call gateway charge (strict Zero Mock: genuine confirmation required)
         try:
             gw_resp = self.client.charge(
                 shop_process_id=shop_process_id,
@@ -244,15 +238,28 @@ class BancardPaymentService:
                 description=req.description,
             )
             op = gw_resp.get("confirmation", {}).get("operation") or gw_resp.get("operation", {})
-            resp_code = op.get("response_code", RESPONSE_CODE_APPROVED)
-            resp_desc = op.get("response_description", resp_desc)
-            ticket = op.get("ticket_number", ticket)
-            auth_no = op.get("authorization_number", auth_no)
+            resp_code = op.get("response_code")
+            resp_desc = op.get("response_description", "Transaccion procesada")
+            ticket = op.get("ticket_number")
+            auth_no = op.get("authorization_number")
+            is_approved = resp_code == RESPONSE_CODE_APPROVED
+            final_status = TransactionStatus.APPROVED.value if is_approved else TransactionStatus.REJECTED.value
+        except BancardGatewayError as exc:
+            logger.error("Bancard gateway charge error: %s", str(exc))
+            resp_code = "99"
+            resp_desc = f"Gateway error: {str(exc)}"
+            ticket = None
+            auth_no = None
+            is_approved = False
+            final_status = TransactionStatus.REJECTED.value
         except Exception as exc:
-            logger.warning("Gateway charge error: %s", str(exc))
-
-        is_approved = resp_code == RESPONSE_CODE_APPROVED
-        final_status = TransactionStatus.APPROVED.value if is_approved else TransactionStatus.REJECTED.value
+            logger.error("Unexpected charge error: %s", str(exc))
+            resp_code = "99"
+            resp_desc = f"Execution error: {str(exc)}"
+            ticket = None
+            auth_no = None
+            is_approved = False
+            final_status = TransactionStatus.REJECTED.value
 
         tx.status = final_status
         tx.response_code = resp_code
@@ -300,8 +307,8 @@ class BancardPaymentService:
         return TokenChargeResponse(
             shop_process_id=tx.shop_process_id,
             status=tx.status,
-            response_code=tx.response_code,
-            response_description=tx.response_description,
+            response_code=tx.response_code or "",
+            response_description=tx.response_description or "",
             ticket_number=tx.ticket_number,
             authorization_number=tx.authorization_number,
         )
@@ -335,10 +342,15 @@ class BancardPaymentService:
         if tx.status not in [TransactionStatus.PENDING.value, TransactionStatus.APPROVED.value]:
             raise ValueError(f"Cannot rollback transaction in terminal status: {tx.status}")
 
-        try:
-            self.client.rollback(shop_process_id)
-        except Exception as exc:
-            logger.warning("Gateway rollback notification warning: %s", str(exc))
+        # Real gateway rollback (strict Zero Mock: do not record reversal if Bancard fails or rejects)
+        gw_resp = self.client.rollback(shop_process_id)
+        if isinstance(gw_resp, dict) and gw_resp.get("status") == "error":
+            msgs = gw_resp.get("messages", ["Rollback rejected by Bancard"])
+            raise BancardGatewayError(
+                f"Bancard rollback rejected: {msgs}",
+                response_data=gw_resp,
+                status_code=400,
+            )
 
         prev_status = tx.status
         tx.status = TransactionStatus.REVERSED.value

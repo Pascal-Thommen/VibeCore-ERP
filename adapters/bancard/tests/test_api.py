@@ -33,9 +33,17 @@ def client_and_db():
         finally:
             session.close()
 
+    from bancard.service import service
+    from tests.conftest import MockBancardGatewayClient
+
+    orig_client = service.client
+    mock_client = MockBancardGatewayClient()
+    service.client = mock_client
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client, TestingSession()
+    service.client = orig_client
     app.dependency_overrides.clear()
 
 

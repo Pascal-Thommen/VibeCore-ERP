@@ -24,31 +24,8 @@ from bancard.models import (
     SingleBuyInitRequest,
     TokenChargeRequest,
 )
+from bancard.client import BancardGatewayError
 from bancard.service import BancardPaymentService
-
-
-from sqlalchemy.pool import StaticPool
-
-
-@pytest.fixture
-def db():
-    test_engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=test_engine)
-    TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    session = TestingSession()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-@pytest.fixture
-def service():
-    return BancardPaymentService()
 
 
 def test_initialize_single_buy_flow(db, service):
@@ -307,3 +284,65 @@ def test_generate_catastro_qr_and_status(db, service):
 
     expired_status = service.get_qr_status(db=db, shop_process_id=qr_resp.shop_process_id)
     assert expired_status.status == TransactionStatus.REJECTED.value
+
+
+def test_zero_mock_single_buy_gateway_failure(db, service, mock_gateway_client):
+    mock_gateway_client.should_fail = True
+    req = SingleBuyInitRequest(
+        amount=Decimal("45000.00"),
+        currency=CURRENCY_PYG,
+        description="Failing buy",
+        user_id="usr_fail",
+    )
+    with pytest.raises(BancardGatewayError) as exc_info:
+        service.initialize_single_buy(db=db, req=req)
+    assert exc_info.value.status_code == 502
+
+
+def test_zero_mock_cards_new_gateway_failure(db, service, mock_gateway_client):
+    mock_gateway_client.should_fail = True
+    req = CardCatastroRequest(
+        user_id="usr_fail",
+        card_id=99,
+    )
+    with pytest.raises(BancardGatewayError) as exc_info:
+        service.initialize_card_catastro(db=db, req=req)
+    assert exc_info.value.status_code == 502
+
+
+def test_zero_mock_charge_gateway_failure_marks_rejected(db, service, mock_gateway_client):
+    mock_gateway_client.should_fail = True
+    req = TokenChargeRequest(
+        alias_token="alias_fail",
+        amount=Decimal("45000.00"),
+        currency=CURRENCY_PYG,
+        description="Failing charge",
+        user_id="usr_fail",
+    )
+    resp = service.execute_token_charge(db=db, req=req)
+    # Must NOT be APPROVED!
+    assert resp.status == TransactionStatus.REJECTED.value
+    assert resp.response_code == "99"
+
+    tx = db.query(BancardTransaction).filter(BancardTransaction.shop_process_id == resp.shop_process_id).first()
+    assert tx.status == TransactionStatus.REJECTED.value
+
+
+def test_zero_mock_rollback_gateway_failure_does_not_reverse(db, service, mock_gateway_client):
+    # First create a valid pending transaction
+    sb_req = SingleBuyInitRequest(
+        amount=Decimal("45000.00"),
+        currency=CURRENCY_PYG,
+        description="Pending purchase",
+        user_id="usr_pascal_01",
+    )
+    sb_resp = service.initialize_single_buy(db=db, req=sb_req)
+
+    # Now make gateway fail rollback
+    mock_gateway_client.should_fail = True
+    with pytest.raises(BancardGatewayError):
+        service.execute_rollback(db=db, shop_process_id=sb_resp.shop_process_id)
+
+    # Database must still be PENDING, NOT REVERSED
+    tx = db.query(BancardTransaction).filter(BancardTransaction.shop_process_id == sb_resp.shop_process_id).first()
+    assert tx.status == TransactionStatus.PENDING.value
