@@ -82,3 +82,39 @@ def test_signed_state_malformed():
 
     with pytest.raises(ValueError, match="Malformed state token"):
         verify_signed_state("part1.part2.part3", secret_key=secret)
+
+
+def test_pkce_length_bounds():
+    verifier_small = generate_code_verifier(10)
+    assert 43 <= len(verifier_small) <= 128
+    verifier_large = generate_code_verifier(200)
+    assert 43 <= len(verifier_large) <= 128
+
+
+def test_signed_state_invalid_timestamp_types_and_future():
+    import base64, hmac, hashlib, json
+    secret = "test-secret-at-least-32-bytes-long-super-secure"
+
+    # Non-numeric timestamp
+    bad_ts_payload = {"ts": "not-a-timestamp", "state_id": "1"}
+    data_b64 = base64.urlsafe_b64encode(json.dumps(bad_ts_payload).encode()).decode().rstrip("=")
+    sig = hmac.new(secret.encode(), data_b64.encode(), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).decode().rstrip("=")
+    with pytest.raises(TypeError, match="Invalid timestamp type"):
+        verify_signed_state(f"{data_b64}.{sig_b64}", secret_key=secret)
+
+    # Future timestamp
+    future_payload = {"ts": time.time() + 3600, "state_id": "2"}
+    data_b64 = base64.urlsafe_b64encode(json.dumps(future_payload).encode()).decode().rstrip("=")
+    sig = hmac.new(secret.encode(), data_b64.encode(), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).decode().rstrip("=")
+    with pytest.raises(ValueError, match="in the future"):
+        verify_signed_state(f"{data_b64}.{sig_b64}", secret_key=secret)
+
+    # Invalid JSON in payload
+    bad_json_b64 = base64.urlsafe_b64encode(b"{bad json").decode().rstrip("=")
+    sig = hmac.new(secret.encode(), bad_json_b64.encode(), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).decode().rstrip("=")
+    with pytest.raises(ValueError, match="Failed to decode state payload"):
+        verify_signed_state(f"{bad_json_b64}.{sig_b64}", secret_key=secret)
+

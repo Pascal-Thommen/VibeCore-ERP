@@ -1,5 +1,6 @@
 """
 VibeCore ERP Auth Adapter Data Models and Schemas.
+Includes RFC 7517 JWKS, TokenResponse with Refresh Token, and Tenant ID.
 """
 
 from typing import Any
@@ -12,6 +13,7 @@ class UserInfo(BaseModel):
 
     user_id: str = Field(..., description="Unique user identifier mapped from Google sub")
     email: str = Field(..., description="Verified email address from Google")
+    tenant_id: str = Field(..., description="Assigned multi-tenant identifier")
     name: str | None = Field(None, description="Full display name")
     picture: str | None = Field(None, description="Avatar image URL")
     roles: list[str] = Field(default_factory=list, description="Assigned VibeCore roles")
@@ -23,12 +25,30 @@ class UserInfo(BaseModel):
 class TokenResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    access_token: str = Field(..., description="Signed VibeCore session JWT token")
+    access_token: str = Field(..., description="Signed VibeCore session JWT access token (RS256)")
+    refresh_token: str | None = Field(
+        None, description="Signed VibeCore refresh token (7 days validity)"
+    )
     token_type: str = Field(default="Bearer", description="OAuth2 token type")
-    expires_in: int = Field(default=3600, description="Token validity in seconds")
+    expires_in: int = Field(default=3600, description="Access token validity in seconds")
+    refresh_expires_in: int | None = Field(
+        default=604800, description="Refresh token validity in seconds (7 days)"
+    )
+    tenant_id: str = Field(..., description="Assigned multi-tenant identifier")
     user: UserInfo = Field(..., description="Authenticated user profile and roles")
     meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
     custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")
+
+
+class RefreshTokenRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    refresh_token: str | None = Field(
+        default=None, description="VibeCore issued refresh token"
+    )
+    tenant_hint: str | None = Field(
+        None, description="Optional tenant hint override or validation"
+    )
 
 
 class LoginInitiationResponse(BaseModel):
@@ -41,11 +61,32 @@ class LoginInitiationResponse(BaseModel):
     meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
 
 
+class JWKSResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    keys: list[dict[str, Any]] = Field(
+        ..., description="List of RFC 7517 compliant JSON Web Keys"
+    )
+
+
+class OpenIDConfigurationResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    issuer: str = Field(..., description="OIDC Issuer URL")
+    authorization_endpoint: str = Field(..., description="OAuth 2.0 authorization endpoint")
+    token_endpoint: str = Field(..., description="OAuth 2.0 token endpoint")
+    jwks_uri: str = Field(..., description="Public JWKS URL")
+    userinfo_endpoint: str = Field(..., description="OIDC userinfo endpoint")
+    response_types_supported: list[str] = Field(default=["code"])
+    subject_types_supported: list[str] = Field(default=["public"])
+    id_token_signing_alg_values_supported: list[str] = Field(default=["RS256", "EdDSA"])
+
+
 class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     status: str = Field(default="healthy", description="Overall health state")
-    service: str = Field(default="vibecore-auth-adapter", description="Service identifier")
+    service: str = Field(default="vibecore-auth", description="Service identifier")
     version: str = Field(default="0.1.0", description="Service version")
     google_oauth_configured: bool = Field(
         ..., description="Whether Google OAuth credentials are set"

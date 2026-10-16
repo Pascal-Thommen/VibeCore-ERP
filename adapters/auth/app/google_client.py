@@ -1,10 +1,12 @@
 """
 VibeCore ERP Auth Adapter - Google OAuth 2.0 & OIDC Client (Zero-Mock Resilient Engine).
-Implements token exchange, JWKS caching, RS256 signature verification, and claims validation.
+Implements token exchange, JWKS caching, RS256 signature verification, claims validation,
+and configurable exponential backoff retry mechanisms (Säule 1: Resilienz).
 """
 
+import asyncio
 import time
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 import jwt
@@ -13,6 +15,7 @@ from jwt.algorithms import RSAAlgorithm
 from app.audit import log_audit_event
 from app.config import Settings
 from app.config import settings as default_settings
+from app.metrics import metrics_registry
 
 
 class GoogleAuthException(Exception):
@@ -56,6 +59,97 @@ class GoogleOAuthClient:
         )
         return httpx.AsyncClient(timeout=timeout)
 
+    async def _execute_with_retry(
+        self,
+        request_fn: Callable[[httpx.AsyncClient], Any],
+        endpoint_name: str,
+        max_retries: int | None = None,
+    ) -> httpx.Response:
+        """
+        Executes an HTTP request with exponential backoff retry for transient network errors (Säule 1).
+        Does not retry 4xx client errors.
+        """
+        retries = max_retries if max_retries is not None else self.settings.http_max_retries
+        client = await self._get_client()
+        owns_client = client != self._http_client
+
+        last_exc: Exception | None = None
+        start_time = time.time()
+
+        for attempt in range(retries + 1):
+            try:
+                response = await request_fn(client)
+                duration = time.time() - start_time
+
+                # Transient server errors: 502, 503, 504 are eligible for retry
+                if response.status_code in [502, 503, 504] and attempt < retries:
+                    delay = self.settings.http_retry_delay_seconds * (
+                        self.settings.http_retry_backoff_factor**attempt
+                    )
+                    log_audit_event(
+                        "auth.google.retry",
+                        f"Transient HTTP {response.status_code} on {endpoint_name}; retrying in {delay:.2f}s (attempt {attempt + 1}/{retries})",
+                        data={
+                            "attempt": attempt + 1,
+                            "delay": delay,
+                            "status_code": response.status_code,
+                            "endpoint": endpoint_name,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                metrics_registry.record_google_request(
+                    endpoint_name, response.status_code, duration
+                )
+                if owns_client:
+                    await client.aclose()
+                return response
+
+            except (httpx.TimeoutException, httpx.RequestError) as exc:
+                last_exc = exc
+                duration = time.time() - start_time
+                metrics_registry.record_exception(type(exc).__name__)
+
+                if attempt < retries:
+                    delay = self.settings.http_retry_delay_seconds * (
+                        self.settings.http_retry_backoff_factor**attempt
+                    )
+                    log_audit_event(
+                        "auth.google.retry",
+                        f"Network exception on {endpoint_name}: {exc}; retrying in {delay:.2f}s (attempt {attempt + 1}/{retries})",
+                        data={"attempt": attempt + 1, "delay": delay, "error": str(exc)},
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    if owns_client:
+                        await client.aclose()
+                    if isinstance(exc, httpx.TimeoutException):
+                        log_audit_event(
+                            "auth.google.timeout",
+                            f"Google call to {endpoint_name} timed out after {retries} retries",
+                            exc_info=exc,
+                        )
+                        raise GoogleAuthTimeoutException(
+                            f"Timeout communicating with Google {endpoint_name}"
+                        ) from exc
+                    log_audit_event(
+                        "auth.google.network_error",
+                        f"Google call to {endpoint_name} network error: {exc}",
+                        exc_info=exc,
+                    )
+                    raise GoogleAuthException(
+                        message="Network error while contacting Google OAuth servers",
+                        detail=str(exc),
+                        status_code=502,
+                    ) from exc
+
+        if owns_client:
+            await client.aclose()
+        if last_exc:
+            raise last_exc
+        raise GoogleAuthException("Max retries exceeded without response")
+
     def get_authorization_url(self, state: str, code_challenge: str) -> str:
         """
         Constructs the Google OAuth 2.0 Authorization URL with PKCE (S256).
@@ -78,7 +172,8 @@ class GoogleOAuthClient:
 
     async def exchange_code_for_tokens(self, code: str, code_verifier: str) -> dict[str, Any]:
         """
-        Exchanges authorization code for access_token and id_token using PKCE verifier.
+        Exchanges authorization code for access_token and id_token using PKCE verifier,
+        protected with configurable timeout and retry logic.
         """
         payload = {
             "code": code,
@@ -89,61 +184,44 @@ class GoogleOAuthClient:
             "code_verifier": code_verifier,
         }
 
-        client = await self._get_client()
-        owns_client = client != self._http_client
+        log_audit_event(
+            "auth.google.exchange_started", "Initiating token exchange with Google OAuth"
+        )
 
-        try:
-            log_audit_event(
-                "auth.google.exchange_started", "Initiating token exchange with Google OAuth"
-            )
-            response = await client.post(
+        async def _call_token_endpoint(c: httpx.AsyncClient) -> httpx.Response:
+            return await c.post(
                 self.settings.google_token_url,
                 data=payload,
                 headers={"Accept": "application/json"},
             )
-            if response.status_code != 200:
-                err_data = (
-                    response.json()
-                    if response.headers.get("content-type", "").startswith("application/json")
-                    else {}
-                )
-                err_msg = (
-                    err_data.get("error_description") or err_data.get("error") or response.text
-                )
-                log_audit_event(
-                    "auth.google.exchange_failed",
-                    f"Token exchange failed with HTTP {response.status_code}",
-                    data={"status_code": response.status_code, "error": str(err_msg)},
-                )
-                raise GoogleAuthException(
-                    message=f"Google token exchange failed: {err_msg}",
-                    detail=f"Google returned HTTP {response.status_code}",
-                    status_code=400 if response.status_code < 500 else 502,
-                )
 
-            token_data = response.json()
-            log_audit_event(
-                "auth.google.exchange_success", "Successfully exchanged code for Google tokens"
+        response = await self._execute_with_retry(_call_token_endpoint, "token_endpoint")
+
+        if response.status_code != 200:
+            err_data = (
+                response.json()
+                if response.headers.get("content-type", "").startswith("application/json")
+                else {}
             )
-            return token_data
-
-        except httpx.TimeoutException as exc:
-            log_audit_event("auth.google.timeout", "Google token exchange timed out", exc_info=exc)
-            raise GoogleAuthTimeoutException("Timeout contacting Google token endpoint") from exc
-        except httpx.RequestError as exc:
+            err_msg = (
+                err_data.get("error_description") or err_data.get("error") or response.text
+            )
             log_audit_event(
-                "auth.google.network_error",
-                f"Network error during token exchange: {exc}",
-                exc_info=exc,
+                "auth.google.exchange_failed",
+                f"Token exchange failed with HTTP {response.status_code}",
+                data={"status_code": response.status_code, "error": str(err_msg)},
             )
             raise GoogleAuthException(
-                message="Network error while contacting Google OAuth servers",
-                detail=str(exc),
-                status_code=502,
-            ) from exc
-        finally:
-            if owns_client:
-                await client.aclose()
+                message=f"Google token exchange failed: {err_msg}",
+                detail=f"Google returned HTTP {response.status_code}",
+                status_code=400 if response.status_code < 500 else 502,
+            )
+
+        token_data = response.json()
+        log_audit_event(
+            "auth.google.exchange_success", "Successfully exchanged code for Google tokens"
+        )
+        return token_data
 
     async def get_google_jwks(self, force_refresh: bool = False) -> dict[str, Any]:
         """
@@ -157,33 +235,23 @@ class GoogleOAuthClient:
         ):
             return self._jwks_cache
 
-        client = await self._get_client()
-        owns_client = client != self._http_client
+        log_audit_event("auth.google.jwks_fetch", "Fetching Google Public JWKS certs")
 
-        try:
-            log_audit_event("auth.google.jwks_fetch", "Fetching Google Public JWKS certs")
-            response = await client.get(self.settings.google_jwks_url)
-            if response.status_code != 200:
-                raise GoogleAuthException(
-                    message="Failed to fetch Google Public JWKS certificates",
-                    detail=f"HTTP {response.status_code}",
-                    status_code=502,
-                )
-            jwks = response.json()
-            self._jwks_cache = jwks
-            self._jwks_cached_at = now
-            return jwks
-        except httpx.TimeoutException as exc:
-            raise GoogleAuthTimeoutException("Timeout fetching Google Public JWKS certs") from exc
-        except httpx.RequestError as exc:
+        async def _call_jwks_endpoint(c: httpx.AsyncClient) -> httpx.Response:
+            return await c.get(self.settings.google_jwks_url)
+
+        response = await self._execute_with_retry(_call_jwks_endpoint, "jwks_endpoint")
+
+        if response.status_code != 200:
             raise GoogleAuthException(
-                message="Network error while fetching Google JWKS certificates",
-                detail=str(exc),
+                message="Failed to fetch Google Public JWKS certificates",
+                detail=f"HTTP {response.status_code}",
                 status_code=502,
-            ) from exc
-        finally:
-            if owns_client:
-                await client.aclose()
+            )
+        jwks = response.json()
+        self._jwks_cache = jwks
+        self._jwks_cached_at = now
+        return jwks
 
     async def validate_id_token(self, id_token: str) -> dict[str, Any]:
         """

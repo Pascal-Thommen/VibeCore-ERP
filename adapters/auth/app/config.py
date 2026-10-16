@@ -46,18 +46,34 @@ class Settings(BaseSettings):
         description="Valid Google ID Token Issuer URLs",
     )
 
-    # VibeCore JWT & Session (ADR 0004)
+    # VibeCore JWT & Cryptographic Token Management (ADR 0004 & RS256/EdDSA IdP)
     jwt_secret: str = Field(
         default="vibecore-super-secure-production-jwt-secret-min-32-chars-long",
-        description="Secret key for signing VibeCore session JWT tokens",
+        description="Secret key for signing legacy or fallback HMAC session tokens",
     )
     jwt_algorithm: str = Field(
-        default="HS256",
-        description="JWT algorithm for VibeCore session tokens",
+        default="RS256",
+        description="Asymmetric algorithm for VibeCore session tokens (RS256 or EdDSA)",
+    )
+    jwt_key_id: str = Field(
+        default="vibecore-auth-key-1",
+        description="Key identifier (kid) published in JWKS and JWT header",
+    )
+    jwt_private_key_pem: str | None = Field(
+        default=None,
+        description="Optional PEM string for RSA/Ed25519 private key. If omitted, auto-generated.",
+    )
+    jwt_private_key_path: str | None = Field(
+        default=None,
+        description="Optional file path to PEM-encoded RSA/Ed25519 private key",
     )
     jwt_expiration_minutes: int = Field(
         default=60,
         description="VibeCore access token expiration in minutes (ADR 0004 specifies 1 hour)",
+    )
+    jwt_refresh_expiration_days: int = Field(
+        default=7,
+        description="VibeCore refresh token expiration in days (ADR 0004 specifies 7 days)",
     )
     jwt_issuer: str = Field(
         default="vibecore-auth",
@@ -100,10 +116,47 @@ class Settings(BaseSettings):
         description="Default role assigned to verified Google users",
     )
 
+    # Mandanten-Zuordnung (Tenant Resolution)
+    tenant_domain_mapping: dict[str, str] = Field(
+        default_factory=lambda: {
+            "vibecore.org": "tenant_vibecore",
+            "vibecore.py": "tenant_vibecore",
+            "solarluchs.de": "tenant_solarluchs",
+        },
+        description="Domain to tenant ID mapping dictionary",
+    )
+    tenant_organization_mapping: dict[str, str] = Field(
+        default_factory=lambda: {
+            "pascalsolarluchs@gmail.com": "tenant_vibecore",
+            "pascal@vibecore.org": "tenant_vibecore",
+        },
+        description="Specific user email to tenant ID mapping dictionary",
+    )
+    default_tenant_id: str = Field(
+        default="tenant_default",
+        description="Default fallback tenant ID",
+    )
+    public_tenant_prefix: str = Field(
+        default="tenant_user_",
+        description="Prefix for personal tenants of public email domain users (gmail, yahoo, etc.)",
+    )
+
     # Resilience & Timeouts (Säule 1)
     http_timeout_seconds: float = Field(
         default=10.0,
         description="Explicit HTTP network timeout in seconds for external Google API calls",
+    )
+    http_max_retries: int = Field(
+        default=3,
+        description="Maximum number of retries against external identity provider endpoints",
+    )
+    http_retry_delay_seconds: float = Field(
+        default=0.2,
+        description="Initial delay in seconds for exponential backoff retry",
+    )
+    http_retry_backoff_factor: float = Field(
+        default=2.0,
+        description="Backoff multiplier for consecutive retries",
     )
     jwks_cache_ttl_seconds: int = Field(
         default=3600,
