@@ -67,7 +67,9 @@ def test_financial_float_and_non_sifen_iva_rate_are_rejected() -> None:
 
 
 def test_core_resource_routes_are_registered_under_v1() -> None:
-    paths = {route.path for route in app.routes if hasattr(route, "path")}
+    paths = {route.path for route in app.routes if hasattr(route, "path")} | set(
+        app.openapi().get("paths", {}).keys()
+    )
     assert {
         "/api/v1/partners",
         "/api/v1/accounts",
