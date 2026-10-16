@@ -75,12 +75,13 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e sdk
+          pip install "greenlet>=3.0"
           pip install -e "backend[dev]"
 
       - name: Run Pytest Backend
         run: |
           cd backend
-          pytest -v tests
+          PYTHONPATH=. pytest -v tests
 
   test-adapters:
     name: 🔌 Adapter Tests (${{ matrix.adapter }})
