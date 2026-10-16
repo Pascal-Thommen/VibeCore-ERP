@@ -79,7 +79,10 @@ def test_callback_and_session_lifecycle(client, rsa_keypair, test_settings, make
         assert callback_res.status_code == 200
         token_data = callback_res.json()
         assert "access_token" in token_data
+        assert "refresh_token" in token_data
+        assert token_data["tenant_id"] == "tenant_vibecore"
         assert token_data["user"]["email"] == "pascal@vibecore.org"
+        assert token_data["user"]["tenant_id"] == "tenant_vibecore"
         assert "ADMIN" in token_data["user"]["roles"]
         assert "ACCOUNTANT" in token_data["user"]["roles"]
 
@@ -92,6 +95,7 @@ def test_callback_and_session_lifecycle(client, rsa_keypair, test_settings, make
         assert me_res.status_code == 200
         me_data = me_res.json()
         assert me_data["email"] == "pascal@vibecore.org"
+        assert me_data["tenant_id"] == "tenant_vibecore"
         assert me_data["roles"] == ["ADMIN", "ACCOUNTANT"]
 
         # 6. Access /auth/me with Session cookie
