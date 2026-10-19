@@ -1,0 +1,246 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VibeCore Mail Microservice Adapter",
+    "description": "Universal, lightweight mail microservice in Go for SMTP, IMAP, and Webhooks within the VibeCore ecosystem.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8025",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/api/v1/mail/send": {
+      "post": {
+        "summary": "Queue an email for delivery",
+        "description": "Asynchronously and durably queues an email with templating, attachments, and idempotency.",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-Correlation-ID",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SendMailRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Email queued successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SendMailAcceptedResponse" }
+              }
+            }
+          },
+          "200": {
+            "description": "Duplicate request resolved idempotently"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        }
+      }
+    },
+    "/api/v1/mail/status/{id}": {
+      "get": {
+        "summary": "Get email processing status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email status details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Email not found"
+          }
+        }
+      }
+    },
+    "/api/v1/mail/templates": {
+      "get": {
+        "summary": "List all registered templates",
+        "responses": {
+          "200": {
+            "description": "Template list"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a new template",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "html": { "type": "string" },
+                  "text": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Template registered"
+          }
+        }
+      }
+    },
+    "/api/v1/mail/webhooks/resend": {
+      "post": {
+        "summary": "Resend webhook endpoint",
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/mail/webhooks/brevo": {
+      "post": {
+        "summary": "Brevo webhook endpoint",
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/mail/webhooks/sendgrid": {
+      "post": {
+        "summary": "SendGrid event and inbound webhook endpoint",
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/mail/webhooks/generic": {
+      "post": {
+        "summary": "Generic inbound RFC 822 or JSON mail ingestion",
+        "responses": {
+          "200": { "description": "Inbound email received" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Liveness healthcheck",
+        "responses": {
+          "200": { "description": "Service healthy" }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness healthcheck",
+        "responses": {
+          "200": { "description": "Service ready" },
+          "503": { "description": "Service degraded" }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Memory consumption and queue metrics",
+        "responses": {
+          "200": { "description": "Metrics retrieved" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Attachment": {
+        "type": "object",
+        "required": ["filename", "data"],
+        "properties": {
+          "filename": { "type": "string" },
+          "content_type": { "type": "string" },
+          "size": { "type": "integer" },
+          "data": { "type": "string", "description": "Base64 encoded payload" },
+          "sha256": { "type": "string" }
+        }
+      },
+      "SendMailRequest": {
+        "type": "object",
+        "required": ["to", "subject"],
+        "properties": {
+          "from": { "type": "string" },
+          "from_name": { "type": "string" },
+          "to": { "type": "array", "items": { "type": "string" } },
+          "cc": { "type": "array", "items": { "type": "string" } },
+          "bcc": { "type": "array", "items": { "type": "string" } },
+          "reply_to": { "type": "string" },
+          "subject": { "type": "string" },
+          "text_body": { "type": "string" },
+          "html_body": { "type": "string" },
+          "template": { "type": "string" },
+          "template_data": { "type": "object" },
+          "attachments": { "type": "array", "items": { "$ref": "#/components/schemas/Attachment" } },
+          "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "metadata": { "type": "object" }
+        }
+      },
+      "SendMailAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "state": { "type": "string", "enum": ["QUEUED", "SENDING", "SENT", "DELIVERED", "FAILED", "BOUNCED"] },
+          "correlation_id": { "type": "string" },
+          "status_url": { "type": "string" }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "state": { "type": "string" },
+          "correlation_id": { "type": "string" },
+          "attempts": { "type": "integer" },
+          "max_attempts": { "type": "integer" },
+          "last_error": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "sent_at": { "type": "string", "format": "date-time", "nullable": true },
+          "metadata": { "type": "object" }
+        }
+      }
+    }
+  }
+}
