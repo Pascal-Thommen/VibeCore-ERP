@@ -1,0 +1,42 @@
+services:
+  vibecore-mail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-mail-adapter
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8025
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - MAIL_API_KEY=${MAIL_API_KEY:-development-mail-api-key}
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-noreply@vibecore.local}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-VibeCore ERP}
+      - SMTP_TLS_POLICY=${SMTP_TLS_POLICY:-opportunistic}
+      - IMAP_ENABLED=${IMAP_ENABLED:-false}
+      - IMAP_HOST=${IMAP_HOST:-}
+      - IMAP_PORT=${IMAP_PORT:-993}
+      - QUEUE_DB_PATH=/data/mail_queue.db
+      - QUEUE_MAX_RETRIES=5
+      - QUEUE_BASE_BACKOFF=2s
+      - STATUS_WEBHOOK_URL=${STATUS_WEBHOOK_URL:-}
+      - STATUS_WEBHOOK_SECRET=${STATUS_WEBHOOK_SECRET:-}
+    volumes:
+      - mail_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8025/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mail_data:
+    driver: local
