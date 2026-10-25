@@ -67,8 +67,108 @@
           }
         }
       }
+    },
+    "/api/v1/sifen/contingencia/issue": {
+      "post": {
+        "summary": "Issue electronic document with automatic failover to Contingencia",
+        "operationId": "issueContingenciaDocument",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["header", "items", "profile"],
+                "properties": {
+                  "header": { "type": "object" },
+                  "items": { "type": "array", "items": { "type": "object" } },
+                  "profile": { "$ref": "#/components/schemas/MandantRucProfile" },
+                  "force_offline": { "type": "boolean", "default": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document issued with KuDE customer receipt and outbox record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContingenciaIssueResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/contingencia/queue": {
+      "get": {
+        "summary": "List documents in durable outbox queue",
+        "operationId": "listOutboxQueue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of outbox records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/ContingenciaRecord" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/contingencia/sync": {
+      "post": {
+        "summary": "Trigger batch synchronization of queued offline documents with exponential backoff",
+        "operationId": "syncPendingBatch",
+        "responses": {
+          "200": {
+            "description": "Batch synchronization result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchSyncResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/contingencia/alerts": {
+      "get": {
+        "summary": "Check 72h legal deadline warnings and expired documents",
+        "operationId": "check72hAlerts",
+        "responses": {
+          "200": {
+            "description": "List of active deadline alerts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/DeadlineAlert" }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
+
   "components": {
     "schemas": {
       "MandantRucProfile": {

@@ -79,3 +79,29 @@ IVA_AFECTACION_DESCRIPTIONS = {
 SIFEN_XML_NAMESPACE = "http://ekuatia.set.gov.py/sifen/xsd"
 SIFEN_FORMAT_VERSION = "150"
 SIFEN_CURRENCY_PYG = "PYG"
+
+# SIFEN Emission Types (iTipEmi - Tipo de Emisión)
+EMISSION_NORMAL = 1
+EMISSION_CONTINGENCIA = 2
+
+EMISSION_TYPE_DESCRIPTIONS = {
+    EMISSION_NORMAL: "Normal",
+    EMISSION_CONTINGENCIA: "Contingencia",
+}
+
+# SIFEN Contingencia Legal Deadlines (DNIT / SET: 72 hours max)
+CONTINGENCIA_MAX_HOURS = 72
+CONTINGENCIA_WARNING_HOURS = 24
+CONTINGENCIA_CRITICAL_HOURS = 12
+
+
+class OutboxStatus(StrEnum):
+    """SIFEN Outbox status tracking lifecycle."""
+
+    DRAFT = "DRAFT"
+    QUEUED_OFFLINE = "QUEUED_OFFLINE"
+    TRANSMITTING = "TRANSMITTING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+
