@@ -1,18 +1,82 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "VibeCore Auth Adapter",
-    "description": "Isolated Google OAuth 2.0 & OpenID Connect (OIDC) SSO Microservice for VibeCore ERP.",
+    "title": "VibeCore Auth Microservice",
+    "description": "Standalone Google OAuth 2.0 Identity Provider (IdP) for VibeCore ERP and AIBill with PKCE, RS256/EdDSA asymmetric tokens, JWKS, multi-tenancy, and Prometheus metrics.",
     "version": "0.1.0"
   },
   "paths": {
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "OIDC Discovery & JWKS"
+        ],
+        "summary": "Root JWKS endpoint for stateless token validation",
+        "operationId": "root_jwks__well_known_jwks_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JWKSResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/openid-configuration": {
+      "get": {
+        "tags": [
+          "OIDC Discovery & JWKS"
+        ],
+        "summary": "OpenID Connect Discovery Configuration",
+        "operationId": "openid_configuration__well_known_openid_configuration_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenIDConfigurationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Observability & Health"
+        ],
+        "summary": "Liveness and Healthcheck (Kubernetes standard)",
+        "description": "Returns current health state, service version, and OAuth configuration status.",
+        "operationId": "get_healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
           "Observability & Health"
         ],
-        "summary": "Liveness and Healthcheck",
-        "description": "Returns current health state, service version, and OAuth configuration status.",
+        "summary": "Healthcheck (Legacy alias for /healthz)",
+        "description": "Returns current health state for backwards compatibility.",
         "operationId": "get_health_health_get",
         "responses": {
           "200": {
@@ -28,14 +92,14 @@
         }
       }
     },
-    "/ready": {
+    "/readyz": {
       "get": {
         "tags": [
           "Observability & Health"
         ],
-        "summary": "Readiness Check",
-        "description": "Verifies that all required cryptographic secrets and configuration parameters are loaded.",
-        "operationId": "get_readiness_ready_get",
+        "summary": "Readiness Check (Kubernetes standard)",
+        "description": "Verifies that all required cryptographic secrets, keys, and configuration parameters are loaded.",
+        "operationId": "get_readyz_readyz_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -43,6 +107,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Observability & Health"
+        ],
+        "summary": "Readiness Check (Legacy alias for /readyz)",
+        "operationId": "get_ready_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Observability & Health"
+        ],
+        "summary": "Prometheus Metrics Endpoint",
+        "description": "Returns runtime metrics formatted for Prometheus scrapers in text/plain format.",
+        "operationId": "get_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "Google OAuth 2.0 & OIDC SSO"
+        ],
+        "summary": "Public JWKS Key Set",
+        "description": "Returns RFC 7517 JSON Web Key Set containing active public signing keys for stateless validation.",
+        "operationId": "get_auth_jwks_auth__well_known_jwks_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JWKSResponse"
                 }
               }
             }
@@ -76,6 +203,24 @@
               "title": "Redirect After Login"
             },
             "description": "Client redirect URI upon login completion"
+          },
+          {
+            "name": "org_hint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional organization or tenant hint for user assignment",
+              "title": "Org Hint"
+            },
+            "description": "Optional organization or tenant hint for user assignment"
           }
         ],
         "responses": {
@@ -110,8 +255,8 @@
         "tags": [
           "Google OAuth 2.0 & OIDC SSO"
         ],
-        "summary": "Google OAuth 2.0 Authorization Callback & Token Exchange",
-        "description": "Validates CSRF state, exchanges authorization code for tokens via PKCE, verifies Google ID token signatures, and issues VibeCore JWT.",
+        "summary": "Google OAuth 2.0 Callback & Code Exchange",
+        "description": "Validates CSRF state, exchanges auth code via PKCE, verifies Google ID Token signature, assigns tenant, and issues RS256 token pair.",
         "operationId": "google_callback_auth_google_callback_get",
         "parameters": [
           {
@@ -127,10 +272,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Google authorization code",
+              "description": "Authorization code from Google",
               "title": "Code"
             },
-            "description": "Google authorization code"
+            "description": "Authorization code from Google"
           },
           {
             "name": "state",
@@ -145,10 +290,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Returned CSRF state parameter",
+              "description": "CSRF state parameter",
               "title": "State"
             },
-            "description": "Returned CSRF state parameter"
+            "description": "CSRF state parameter"
           },
           {
             "name": "error",
@@ -163,10 +308,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Google OAuth error code if user declined",
+              "description": "Google OAuth error if user cancelled",
               "title": "Error"
             },
-            "description": "Google OAuth error code if user declined"
+            "description": "Google OAuth error if user cancelled"
           },
           {
             "name": "error_description",
@@ -215,7 +360,7 @@
             }
           },
           "400": {
-            "description": "Invalid authorization code or state",
+            "description": "Invalid authorization code or state token",
             "content": {
               "application/json": {
                 "schema": {
@@ -225,7 +370,7 @@
             }
           },
           "401": {
-            "description": "Token verification failure",
+            "description": "Google signature validation failure",
             "content": {
               "application/json": {
                 "schema": {
@@ -235,7 +380,94 @@
             }
           },
           "504": {
-            "description": "Google service timeout",
+            "description": "Timeout contacting Google OAuth API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/token/refresh": {
+      "post": {
+        "tags": [
+          "Google OAuth 2.0 & OIDC SSO"
+        ],
+        "summary": "Refresh VibeCore Session Tokens",
+        "description": "Validates cryptographic signature of refresh token and issues a new access token and rotated refresh token.",
+        "operationId": "refresh_token_auth_token_refresh_post",
+        "parameters": [
+          {
+            "name": "vibecore_refresh_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vibecore Refresh Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token type or missing refresh token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Expired or invalid refresh token signature",
             "content": {
               "application/json": {
                 "schema": {
@@ -263,8 +495,8 @@
           "Google OAuth 2.0 & OIDC SSO"
         ],
         "summary": "Get Authenticated User Profile & Roles",
-        "description": "Validates VibeCore session JWT from Bearer Authorization header or session cookie and returns userinfo.",
-        "operationId": "get_current_user_auth_me_get",
+        "description": "Validates Bearer token or session cookie and returns user profile, tenant ID, and assigned roles.",
+        "operationId": "get_me_auth_me_get",
         "parameters": [
           {
             "name": "Authorization",
@@ -311,11 +543,79 @@
             }
           },
           "401": {
-            "description": "Invalid or expired session token",
+            "description": "Missing, expired, or invalid session token",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify": {
+      "post": {
+        "tags": [
+          "Google OAuth 2.0 & OIDC SSO"
+        ],
+        "summary": "Stateless Token Verification",
+        "description": "Verifies an access token and returns verified identity and tenant info.",
+        "operationId": "verify_token_endpoint_auth_verify_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Access token to verify",
+              "title": "Token"
+            },
+            "description": "Access token to verify"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
                 }
               }
             }
@@ -338,8 +638,8 @@
         "tags": [
           "Google OAuth 2.0 & OIDC SSO"
         ],
-        "summary": "Logout & Terminate Session",
-        "description": "Clears session and state cookies, terminating the local user session.",
+        "summary": "Log Out and Clear Session",
+        "description": "Clears session cookies and invalidates local authentication state.",
         "operationId": "logout_auth_logout_post",
         "responses": {
           "200": {
@@ -427,7 +727,7 @@
             "type": "string",
             "title": "Service",
             "description": "Service identifier",
-            "default": "vibecore-auth-adapter"
+            "default": "vibecore-auth"
           },
           "version": {
             "type": "string",
@@ -466,6 +766,25 @@
           "timestamp"
         ],
         "title": "HealthResponse"
+      },
+      "JWKSResponse": {
+        "properties": {
+          "keys": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "List of RFC 7517 compliant JSON Web Keys"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "title": "JWKSResponse"
       },
       "LoginInitiationResponse": {
         "properties": {
@@ -519,6 +838,76 @@
         "type": "object",
         "title": "LogoutResponse"
       },
+      "OpenIDConfigurationResponse": {
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "OIDC Issuer URL"
+          },
+          "authorization_endpoint": {
+            "type": "string",
+            "title": "Authorization Endpoint",
+            "description": "OAuth 2.0 authorization endpoint"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "title": "Token Endpoint",
+            "description": "OAuth 2.0 token endpoint"
+          },
+          "jwks_uri": {
+            "type": "string",
+            "title": "Jwks Uri",
+            "description": "Public JWKS URL"
+          },
+          "userinfo_endpoint": {
+            "type": "string",
+            "title": "Userinfo Endpoint",
+            "description": "OIDC userinfo endpoint"
+          },
+          "response_types_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Response Types Supported",
+            "default": [
+              "code"
+            ]
+          },
+          "subject_types_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Types Supported",
+            "default": [
+              "public"
+            ]
+          },
+          "id_token_signing_alg_values_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Id Token Signing Alg Values Supported",
+            "default": [
+              "RS256",
+              "EdDSA"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "jwks_uri",
+          "userinfo_endpoint"
+        ],
+        "title": "OpenIDConfigurationResponse"
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -549,12 +938,55 @@
         ],
         "title": "ReadinessResponse"
       },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "VibeCore issued refresh token"
+          },
+          "tenant_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Hint",
+            "description": "Optional tenant hint override or validation"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RefreshTokenRequest"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
             "type": "string",
             "title": "Access Token",
-            "description": "Signed VibeCore session JWT token"
+            "description": "Signed VibeCore session JWT access token (RS256)"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "Signed VibeCore refresh token (7 days validity)"
           },
           "token_type": {
             "type": "string",
@@ -565,8 +997,26 @@
           "expires_in": {
             "type": "integer",
             "title": "Expires In",
-            "description": "Token validity in seconds",
+            "description": "Access token validity in seconds",
             "default": 3600
+          },
+          "refresh_expires_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Expires In",
+            "description": "Refresh token validity in seconds (7 days)",
+            "default": 604800
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "description": "Assigned multi-tenant identifier"
           },
           "user": {
             "$ref": "#/components/schemas/UserInfo",
@@ -603,6 +1053,7 @@
         "type": "object",
         "required": [
           "access_token",
+          "tenant_id",
           "user"
         ],
         "title": "TokenResponse"
@@ -618,6 +1069,11 @@
             "type": "string",
             "title": "Email",
             "description": "Verified email address from Google"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "description": "Assigned multi-tenant identifier"
           },
           "name": {
             "anyOf": [
@@ -688,7 +1144,8 @@
         "type": "object",
         "required": [
           "user_id",
-          "email"
+          "email",
+          "tenant_id"
         ],
         "title": "UserInfo"
       },
