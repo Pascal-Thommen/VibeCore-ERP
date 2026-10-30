@@ -1,4 +1,4 @@
-"""Product and service master-data endpoints."""
+"""Financial and tax reference-data endpoints for commercial items."""
 
 from __future__ import annotations
 

@@ -140,26 +140,15 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=250), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("unit_of_measure", sa.String(length=20), nullable=False),
-        sa.Column("is_stock_item", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("is_sales_item", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("is_purchase_item", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("standard_price", MONEY_NUMERIC, nullable=False, server_default=sa.text("0")),
-        sa.Column("valuation_rate", MONEY_NUMERIC, nullable=False, server_default=sa.text("0")),
-        sa.Column("weight_per_unit", QUANTITY_NUMERIC, nullable=True),
-        sa.Column("weight_unit", sa.String(length=20), nullable=True),
         sa.Column("default_tax_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("income_account_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("expense_account_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.CheckConstraint(
             "standard_price >= 0", name=op.f("ck_product_standard_price_nonnegative")
-        ),
-        sa.CheckConstraint(
-            "valuation_rate >= 0", name=op.f("ck_product_valuation_rate_nonnegative")
-        ),
-        sa.CheckConstraint(
-            "weight_per_unit IS NULL OR weight_per_unit >= 0",
-            name=op.f("ck_product_weight_nonnegative"),
         ),
         sa.ForeignKeyConstraint(
             ["default_tax_id"],

@@ -167,10 +167,6 @@ class Product(CoreModelMixin, Base):
     __tablename__ = "product"
     __table_args__ = (
         CheckConstraint("standard_price >= 0", name="standard_price_nonnegative"),
-        CheckConstraint("valuation_rate >= 0", name="valuation_rate_nonnegative"),
-        CheckConstraint(
-            "weight_per_unit IS NULL OR weight_per_unit >= 0", name="weight_nonnegative"
-        ),
         UniqueConstraint("sku", name="sku"),
         {"schema": CORE_SCHEMA},
     )
@@ -179,9 +175,6 @@ class Product(CoreModelMixin, Base):
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     unit_of_measure: Mapped[str] = mapped_column(String(20), nullable=False)
-    is_stock_item: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default=text("true")
-    )
     is_sales_item: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
@@ -191,11 +184,6 @@ class Product(CoreModelMixin, Base):
     standard_price: Mapped[Decimal] = mapped_column(
         MONEY_NUMERIC, nullable=False, server_default=text("0")
     )
-    valuation_rate: Mapped[Decimal] = mapped_column(
-        MONEY_NUMERIC, nullable=False, server_default=text("0")
-    )
-    weight_per_unit: Mapped[Decimal | None] = mapped_column(QUANTITY_NUMERIC)
-    weight_unit: Mapped[str | None] = mapped_column(String(20))
     default_tax_id: Mapped[UUID | None] = mapped_column(
         ForeignKey(f"{CORE_SCHEMA}.tax.id", ondelete="RESTRICT")
     )

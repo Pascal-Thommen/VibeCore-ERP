@@ -11,7 +11,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,7 +21,6 @@ from app.schemas.core_schemas import (
     AccountUpdate,
     DocumentCreate,
     DocumentItemCreate,
-    DocumentItemUpdate,
     DocumentUpdate,
     PartnerCreate,
     PartnerUpdate,
@@ -32,6 +31,7 @@ from app.schemas.core_schemas import (
 )
 
 MONEY_QUANTUM = Decimal("0.000001")
+PYG_QUANTUM = Decimal("1")
 
 
 class DocumentNotEditableError(Exception):
@@ -54,9 +54,36 @@ def _schema_values(schema: Any) -> dict[str, Any]:
     return schema.model_dump(exclude_unset=True, by_alias=False)
 
 
-def _money(value: Decimal) -> Decimal:
-    """Round to the Core NUMERIC(20, 6) storage precision deterministically."""
-    return value.quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
+def _money(value: Decimal, currency_code: str = "USD") -> Decimal:
+    """Round to PYG whole integers (no centavos) or Core NUMERIC(20, 6) storage precision."""
+    quantum = PYG_QUANTUM if currency_code.upper() == "PYG" else MONEY_QUANTUM
+    return value.quantize(quantum, rounding=ROUND_HALF_UP)
+
+
+def calculate_paraguayan_iva(
+    gross_amount: Decimal, tax_rate: Decimal, currency_code: str = "PYG"
+) -> tuple[Decimal, Decimal, Decimal]:
+    """Calculate Paraguayan tax-inclusive IVA (Ley 6380/19) from gross line total.
+
+    Official tax liquidation formulas:
+    - IVA 10%: liquidacion_iva = gross_amount / 11
+    - IVA 5%:  liquidacion_iva = gross_amount / 21
+    - Exenta (0%): liquidacion_iva = 0
+    Returns (net_subtotal, tax_amount, gross_total) where net_subtotal + tax_amount == gross_total.
+    """
+    gross_total = _money(gross_amount, currency_code)
+    if tax_rate == Decimal("10"):
+        tax_amount = _money(gross_total / Decimal("11"), currency_code)
+    elif tax_rate == Decimal("5"):
+        tax_amount = _money(gross_total / Decimal("21"), currency_code)
+    elif tax_rate == Decimal("0"):
+        tax_amount = _money(Decimal("0"), currency_code)
+    else:
+        tax_amount = _money(
+            gross_total * tax_rate / (Decimal("100") + tax_rate), currency_code
+        )
+    net_subtotal = _money(gross_total - tax_amount, currency_code)
+    return net_subtotal, tax_amount, gross_total
 
 
 async def _commit_and_refresh(session: AsyncSession, entity: Any) -> Any:
@@ -302,18 +329,13 @@ async def list_documents(
     return list(await session.scalars(statement))
 
 
-async def _next_line_number(session: AsyncSession, document_id: UUID) -> int:
-    maximum = await session.scalar(
-        select(func.max(DocumentItem.line_number)).where(DocumentItem.document_id == document_id)
-    )
-    return int(maximum or 0) + 1
-
-
 async def _line_values(
     session: AsyncSession,
     *,
-    data: DocumentItemCreate | DocumentItemUpdate | dict[str, Any],
+    data: DocumentItemCreate | dict[str, Any],
     direction: str,
+    currency_code: str,
+    functional_currency_code: str,
     exchange_rate: Decimal,
     existing: DocumentItem | None = None,
 ) -> dict[str, Any]:
@@ -342,11 +364,14 @@ async def _line_values(
     if values["discount_amount"] > gross:
         raise ValueError("discount_amount cannot exceed quantity multiplied by unit_price")
 
-    line_subtotal = _money(gross - values["discount_amount"])
-    tax_amount = _money(line_subtotal * tax.rate / Decimal("100"))
-    line_total = _money(line_subtotal + tax_amount)
-    functional_subtotal = _money(line_subtotal * exchange_rate)
-    functional_tax_amount = _money(tax_amount * exchange_rate)
+    gross_after_discount = gross - values["discount_amount"]
+    line_subtotal, tax_amount, line_total = calculate_paraguayan_iva(
+        gross_after_discount, tax.rate, currency_code
+    )
+    functional_gross = gross_after_discount * exchange_rate
+    functional_subtotal, functional_tax_amount, functional_total = calculate_paraguayan_iva(
+        functional_gross, tax.rate, functional_currency_code
+    )
 
     return {
         **values,
@@ -354,27 +379,37 @@ async def _line_values(
         "line_subtotal": line_subtotal,
         "tax_amount": tax_amount,
         "line_total": line_total,
-        "functional_unit_price": _money(values["unit_price"] * exchange_rate),
+        "functional_unit_price": _money(
+            values["unit_price"] * exchange_rate, functional_currency_code
+        ),
         "functional_subtotal": functional_subtotal,
         "functional_tax_amount": functional_tax_amount,
-        "functional_total": _money(functional_subtotal + functional_tax_amount),
+        "functional_total": functional_total,
     }
 
 
 def _apply_document_totals(document: Document, items: list[DocumentItem]) -> None:
-    document.subtotal = _money(sum((item.line_subtotal for item in items), Decimal("0")))
-    document.tax_total = _money(sum((item.tax_amount for item in items), Decimal("0")))
-    document.total = _money(document.subtotal + document.tax_total)
+    currency = document.currency_code
+    func_currency = document.functional_currency_code
+    document.subtotal = _money(
+        sum((item.line_subtotal for item in items), Decimal("0")), currency
+    )
+    document.tax_total = _money(
+        sum((item.tax_amount for item in items), Decimal("0")), currency
+    )
+    document.total = _money(document.subtotal + document.tax_total, currency)
     document.functional_subtotal = _money(
-        sum((item.functional_subtotal for item in items), Decimal("0"))
+        sum((item.functional_subtotal for item in items), Decimal("0")), func_currency
     )
     document.functional_tax_total = _money(
-        sum((item.functional_tax_amount for item in items), Decimal("0"))
+        sum((item.functional_tax_amount for item in items), Decimal("0")), func_currency
     )
     document.functional_total = _money(
-        document.functional_subtotal + document.functional_tax_total
+        document.functional_subtotal + document.functional_tax_total, func_currency
     )
-    document.total_quantity = _money(sum((item.quantity for item in items), Decimal("0")))
+    document.total_quantity = sum((item.quantity for item in items), Decimal("0")).quantize(
+        MONEY_QUANTUM, rounding=ROUND_HALF_UP
+    )
 
 
 async def create_document(session: AsyncSession, data: DocumentCreate) -> Document:
@@ -386,6 +421,8 @@ async def create_document(session: AsyncSession, data: DocumentCreate) -> Docume
     document_values.update(
         {
             "status": "DRAFT",
+            "functional_currency_code": data.functional_currency_code,
+            "exchange_rate": data.exchange_rate,
             "partner_ruc": partner.ruc,
             "partner_dv": partner.dv,
             "partner_legal_name": partner.legal_name,
@@ -401,6 +438,8 @@ async def create_document(session: AsyncSession, data: DocumentCreate) -> Docume
             session,
             data=item,
             direction=document.direction,
+            currency_code=document.currency_code,
+            functional_currency_code=document.functional_currency_code,
             exchange_rate=document.exchange_rate,
         )
         line = DocumentItem(document_id=document.id, line_number=line_number, **values)
@@ -444,78 +483,5 @@ async def delete_document(session: AsyncSession, document_id: UUID) -> bool:
     if document.status != "DRAFT":
         raise DocumentNotEditableError("only DRAFT documents can be deleted")
     await session.delete(document)
-    await session.commit()
-    return True
-
-
-async def get_document_item(session: AsyncSession, item_id: UUID) -> DocumentItem | None:
-    return await session.get(DocumentItem, item_id)
-
-
-async def add_document_item(
-    session: AsyncSession, document_id: UUID, data: DocumentItemCreate
-) -> DocumentItem | None:
-    document = await get_document(session, document_id)
-    if document is None:
-        return None
-    if document.status != "DRAFT":
-        raise DocumentNotEditableError("only DRAFT documents can be changed")
-    values = await _line_values(
-        session,
-        data=data,
-        direction=document.direction,
-        exchange_rate=document.exchange_rate,
-    )
-    item = DocumentItem(
-        document_id=document.id,
-        line_number=await _next_line_number(session, document.id),
-        **values,
-    )
-    session.add(item)
-    document.items.append(item)
-    _apply_document_totals(document, document.items)
-    await session.commit()
-    await session.refresh(item)
-    return item
-
-
-async def update_document_item(
-    session: AsyncSession, item_id: UUID, data: DocumentItemUpdate
-) -> DocumentItem | None:
-    item = await get_document_item(session, item_id)
-    if item is None:
-        return None
-    document = await get_document(session, item.document_id)
-    if document is None:
-        raise RelatedResourceNotFoundError("document")
-    if document.status != "DRAFT":
-        raise DocumentNotEditableError("only DRAFT documents can be changed")
-    values = await _line_values(
-        session,
-        data=data,
-        direction=document.direction,
-        exchange_rate=document.exchange_rate,
-        existing=item,
-    )
-    for field, value in values.items():
-        setattr(item, field, value)
-    _apply_document_totals(document, document.items)
-    await session.commit()
-    await session.refresh(item)
-    return item
-
-
-async def delete_document_item(session: AsyncSession, item_id: UUID) -> bool:
-    item = await get_document_item(session, item_id)
-    if item is None:
-        return False
-    document = await get_document(session, item.document_id)
-    if document is None:
-        raise RelatedResourceNotFoundError("document")
-    if document.status != "DRAFT":
-        raise DocumentNotEditableError("only DRAFT documents can be changed")
-    document.items.remove(item)
-    await session.delete(item)
-    _apply_document_totals(document, document.items)
     await session.commit()
     return True
