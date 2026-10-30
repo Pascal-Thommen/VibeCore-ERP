@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   stripe-adapter:
     build:
@@ -8,15 +6,21 @@ services:
     container_name: vibecore-stripe-adapter
     restart: unless-stopped
     ports:
-      - "8001:8000"
+      - "${STRIPE_PORT:-8002}:8000"
     environment:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_default_secret_key}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_default_publishable_key}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_secret}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_webhook_signing_secret_12345}
       - STRIPE_DEFAULT_CURRENCY=${STRIPE_DEFAULT_CURRENCY:-USD}
       - STRIPE_ENV=${STRIPE_ENV:-sandbox}
       - DATABASE_URL=sqlite:////data/stripe_transactions.db
-      - LOG_LEVEL=INFO
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-10.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     volumes:
       - stripe_data:/data
 

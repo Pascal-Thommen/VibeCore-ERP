@@ -6,14 +6,15 @@ services:
     container_name: vibecore-whatsapp-adapter
     restart: unless-stopped
     ports:
-      - "8005:8005"
+      - "${WHATSAPP_PORT:-8005}:8005"
     environment:
       - WHATSAPP_META_PHONE_NUMBER_ID=${WHATSAPP_META_PHONE_NUMBER_ID:-106540352242522}
-      - WHATSAPP_META_ACCESS_TOKEN=${WHATSAPP_META_ACCESS_TOKEN}
-      - WHATSAPP_META_APP_SECRET=${WHATSAPP_META_APP_SECRET}
-      - WHATSAPP_META_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_META_WEBHOOK_VERIFY_TOKEN}
+      - WHATSAPP_META_ACCESS_TOKEN=${WHATSAPP_META_ACCESS_TOKEN:-vibecore-whatsapp-dev-access-token}
+      - WHATSAPP_META_APP_SECRET=${WHATSAPP_META_APP_SECRET:-vibecore-whatsapp-webhook-app-secret-32b}
+      - WHATSAPP_META_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_META_WEBHOOK_VERIFY_TOKEN:-vibecore_meta_verify_secret}
+      - WHATSAPP_HTTP_TIMEOUT_SECONDS=${WHATSAPP_HTTP_TIMEOUT_SECONDS:-10.0}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -21,11 +21,6 @@ class Settings(BaseSettings):
         validation_alias="STRIPE_SECRET_KEY",
         description="Secret API key issued by Stripe dashboard",
     )
-    stripe_publishable_key: str = Field(
-        default="pk_test_default_publishable_key",
-        validation_alias="STRIPE_PUBLISHABLE_KEY",
-        description="Publishable API key for client-side Stripe integrations",
-    )
     stripe_webhook_secret: str = Field(
         default="whsec_test_webhook_signing_secret_12345",
         validation_alias="STRIPE_WEBHOOK_SECRET",

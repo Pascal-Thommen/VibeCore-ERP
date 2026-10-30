@@ -16,9 +16,6 @@ from app.schemas.accounting_schemas import (
     JournalEntryPost,
     JournalEntryRead,
     JournalEntryUpdate,
-    JournalLineCreate,
-    JournalLineRead,
-    JournalLineUpdate,
 )
 
 router = APIRouter(prefix="/journal-entries", tags=["journal-entries"])
@@ -42,38 +39,6 @@ async def create_journal_entry(
         return await accounting_crud.create_journal_entry(session, data)
     except Exception as exc:
         await raise_write_error(session, exc)
-
-
-@router.get("/lines/{journal_line_id}", response_model=JournalLineRead)
-async def read_journal_line(journal_line_id: UUID, session: SessionDep) -> JournalLineRead:
-    journal_line = await accounting_crud.get_journal_line(session, journal_line_id)
-    if journal_line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="journal line not found")
-    return journal_line
-
-
-@router.patch("/lines/{journal_line_id}", response_model=JournalLineRead)
-async def update_journal_line(
-    journal_line_id: UUID, data: JournalLineUpdate, session: SessionDep
-) -> JournalLineRead:
-    try:
-        journal_line = await accounting_crud.update_journal_line(session, journal_line_id, data)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if journal_line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="journal line not found")
-    return journal_line
-
-
-@router.delete("/lines/{journal_line_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_journal_line(journal_line_id: UUID, session: SessionDep) -> Response:
-    try:
-        deleted = await accounting_crud.delete_journal_line(session, journal_line_id)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="journal line not found")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{journal_entry_id}", response_model=JournalEntryRead)
@@ -106,19 +71,6 @@ async def delete_journal_entry(journal_entry_id: UUID, session: SessionDep) -> R
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="journal entry not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post("/{journal_entry_id}/lines", response_model=JournalLineRead, status_code=201)
-async def add_journal_line(
-    journal_entry_id: UUID, data: JournalLineCreate, session: SessionDep
-) -> JournalLineRead:
-    try:
-        journal_line = await accounting_crud.add_journal_line(session, journal_entry_id, data)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if journal_line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="journal entry not found")
-    return journal_line
 
 
 @router.post("/{journal_entry_id}/submit", response_model=JournalEntryRead)

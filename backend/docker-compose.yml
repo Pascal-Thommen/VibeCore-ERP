@@ -1,22 +1,22 @@
 name: vibecore-erp
 
 x-backend-environment: &backend-environment
-  APP_ENV: development
-  DATABASE_HOST: db
-  DATABASE_PORT: "5432"
-  DATABASE_NAME: vibecore
-  DATABASE_USER: vibecore
+  APP_ENV: ${APP_ENV:-development}
+  DATABASE_HOST: ${DATABASE_HOST:-db}
+  DATABASE_PORT: ${DATABASE_PORT:-5432}
+  DATABASE_NAME: ${DATABASE_NAME:-vibecore}
+  DATABASE_USER: ${DATABASE_USER:-vibecore}
   DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
 
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: vibecore
-      POSTGRES_USER: vibecore
+      POSTGRES_DB: ${DATABASE_NAME:-vibecore}
+      POSTGRES_USER: ${DATABASE_USER:-vibecore}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vibecore -d vibecore"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-vibecore} -d ${DATABASE_NAME:-vibecore}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -44,7 +44,13 @@ services:
         condition: service_completed_successfully
     environment: *backend-environment
     ports:
-      - "8000:8000"
+      - "${CORE_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     secrets:
       - postgres_password
 
