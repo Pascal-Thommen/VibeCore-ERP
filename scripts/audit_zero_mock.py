@@ -471,6 +471,7 @@ class ZeroMockAuditor:
             ("Pagopar Adapter", self.root_dir / "adapters" / "pagopar"),
             ("Stripe Adapter", self.root_dir / "adapters" / "stripe"),
             ("Storage Adapter", self.root_dir / "adapters" / "storage"),
+            ("SIFEN Adapter", self.root_dir / "adapters" / "sifen"),
         ]
 
         for service_name, service_dir in services:

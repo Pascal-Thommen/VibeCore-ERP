@@ -42,6 +42,15 @@ class PagoparPaymentService:
         self.client = client or PagoparClient(self.cfg)
 
     def _transaction_to_response(self, tx: PagoparTransaction) -> OrderResponse:
+        meta = None
+        custom_data = None
+        if tx.raw_order_payload:
+            try:
+                raw_obj = json.loads(tx.raw_order_payload)
+                meta = raw_obj.get("meta")
+                custom_data = raw_obj.get("custom_data")
+            except Exception:
+                pass
         return OrderResponse(
             order_id=tx.order_id,
             pagopar_hash=tx.pagopar_hash,
@@ -55,6 +64,8 @@ class PagoparPaymentService:
             payment_method=tx.payment_method,
             receipt_number=tx.receipt_number,
             details=f"Buyer: {tx.buyer_name} ({tx.buyer_ruc})",
+            meta=meta,
+            custom_data=custom_data,
         )
 
     async def create_payment_order(
@@ -237,10 +248,10 @@ class PagoparPaymentService:
             if tx:
                 if item.pagado:
                     tx.status = OrderStatus.PAID.value
-                    tx.paid_at = datetime.now(UTC)
+                    tx.paid_at = tx.paid_at or datetime.now(UTC)
                     tx.payment_method = item.forma_pago or "Pagopar"
                     tx.receipt_number = item.numero_comprobante
-                else:
+                elif tx.status != OrderStatus.PAID.value:
                     tx.status = OrderStatus.FAILED.value
                 tx.updated_at = datetime.now(UTC)
                 tx.raw_last_response = json.dumps(item.model_dump())

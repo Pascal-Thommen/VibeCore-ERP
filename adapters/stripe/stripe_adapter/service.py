@@ -43,6 +43,15 @@ class StripePaymentService:
         self.client = client or StripeClient(self.cfg)
 
     def _transaction_to_response(self, tx: StripeTransaction) -> PaymentResponse:
+        meta = None
+        custom_data = None
+        if tx.raw_order_payload:
+            try:
+                raw_obj = json.loads(tx.raw_order_payload)
+                meta = raw_obj.get("meta")
+                custom_data = raw_obj.get("custom_data")
+            except Exception:
+                pass
         return PaymentResponse(
             order_id=tx.order_id,
             stripe_id=tx.stripe_id,
@@ -60,6 +69,8 @@ class StripePaymentService:
             payment_method=tx.payment_method,
             receipt_url=tx.receipt_url,
             details=tx.failure_reason if tx.status == OrderStatus.FAILED.value else tx.description,
+            meta=meta,
+            custom_data=custom_data,
         )
 
     async def create_checkout_session(

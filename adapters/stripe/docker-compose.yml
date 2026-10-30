@@ -10,8 +10,8 @@ services:
     ports:
       - "8001:8000"
     environment:
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mock_secret_key}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_mock_publishable_key}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_default_secret_key}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_default_publishable_key}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_secret}
       - STRIPE_DEFAULT_CURRENCY=${STRIPE_DEFAULT_CURRENCY:-USD}
       - STRIPE_ENV=${STRIPE_ENV:-sandbox}
