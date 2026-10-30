@@ -1,4 +1,4 @@
-"""Commercial document and line-item endpoints."""
+"""Reference commercial-document endpoints for fiscal and SIFEN traceability."""
 
 from __future__ import annotations
 
@@ -13,9 +13,6 @@ from app.crud import core_crud
 from app.db.session import get_async_session
 from app.schemas.core_schemas import (
     DocumentCreate,
-    DocumentItemCreate,
-    DocumentItemRead,
-    DocumentItemUpdate,
     DocumentRead,
     DocumentUpdate,
 )
@@ -39,38 +36,6 @@ async def create_document(data: DocumentCreate, session: SessionDep) -> Document
         return await core_crud.create_document(session, data)
     except Exception as exc:
         await raise_write_error(session, exc)
-
-
-@router.get("/items/{item_id}", response_model=DocumentItemRead)
-async def read_document_item(item_id: UUID, session: SessionDep) -> DocumentItemRead:
-    item = await core_crud.get_document_item(session, item_id)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document item not found")
-    return item
-
-
-@router.patch("/items/{item_id}", response_model=DocumentItemRead)
-async def update_document_item(
-    item_id: UUID, data: DocumentItemUpdate, session: SessionDep
-) -> DocumentItemRead:
-    try:
-        item = await core_crud.update_document_item(session, item_id, data)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document item not found")
-    return item
-
-
-@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document_item(item_id: UUID, session: SessionDep) -> Response:
-    try:
-        deleted = await core_crud.delete_document_item(session, item_id)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document item not found")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{document_id}", response_model=DocumentRead)
@@ -103,20 +68,3 @@ async def delete_document(document_id: UUID, session: SessionDep) -> Response:
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post(
-    "/{document_id}/items",
-    response_model=DocumentItemRead,
-    status_code=status.HTTP_201_CREATED,
-)
-async def add_document_item(
-    document_id: UUID, data: DocumentItemCreate, session: SessionDep
-) -> DocumentItemRead:
-    try:
-        item = await core_crud.add_document_item(session, document_id, data)
-    except Exception as exc:
-        await raise_write_error(session, exc)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document not found")
-    return item

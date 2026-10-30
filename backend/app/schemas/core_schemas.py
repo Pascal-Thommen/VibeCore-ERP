@@ -238,25 +238,13 @@ class ProductFields(CoreSchema):
     name: Annotated[str, StringConstraints(strict=True, min_length=1, max_length=250)]
     description: Annotated[str | None, StringConstraints(strict=True, max_length=10_000)] = None
     unit_of_measure: Annotated[str, StringConstraints(strict=True, min_length=1, max_length=20)]
-    is_stock_item: bool = True
     is_sales_item: bool = True
     is_purchase_item: bool = True
     standard_price: Money = Decimal("0")
-    valuation_rate: Money = Decimal("0")
-    weight_per_unit: NonNegativeQuantity | None = None
-    weight_unit: Annotated[
-        str | None, StringConstraints(strict=True, min_length=1, max_length=20)
-    ] = None
     default_tax_id: UUID | None = None
     income_account_id: UUID | None = None
     expense_account_id: UUID | None = None
     is_active: bool = True
-
-    @model_validator(mode="after")
-    def validate_weight_unit(self) -> ProductFields:
-        if self.weight_per_unit is not None and self.weight_unit is None:
-            raise ValueError("weight_unit is required when weight_per_unit is set")
-        return self
 
 
 class ProductCreate(ProductFields):
@@ -270,15 +258,9 @@ class ProductUpdate(CoreSchema):
     unit_of_measure: Annotated[
         str | None, StringConstraints(strict=True, min_length=1, max_length=20)
     ] = None
-    is_stock_item: bool | None = None
     is_sales_item: bool | None = None
     is_purchase_item: bool | None = None
     standard_price: Money | None = None
-    valuation_rate: Money | None = None
-    weight_per_unit: NonNegativeQuantity | None = None
-    weight_unit: Annotated[
-        str | None, StringConstraints(strict=True, min_length=1, max_length=20)
-    ] = None
     default_tax_id: UUID | None = None
     income_account_id: UUID | None = None
     expense_account_id: UUID | None = None
@@ -346,21 +328,6 @@ class DocumentItemCreate(CoreSchema):
         if self.discount_amount > self.quantity * self.unit_price:
             raise ValueError("discount_amount cannot exceed quantity multiplied by unit_price")
         return self
-
-
-class DocumentItemUpdate(CoreSchema):
-    product_id: UUID | None = None
-    tax_id: UUID | None = None
-    product_code: Annotated[str | None, StringConstraints(strict=True, max_length=100)] = None
-    description: Annotated[
-        str | None, StringConstraints(strict=True, min_length=1, max_length=500)
-    ] = None
-    unit_of_measure: Annotated[
-        str | None, StringConstraints(strict=True, min_length=1, max_length=20)
-    ] = None
-    quantity: Quantity | None = None
-    unit_price: Money | None = None
-    discount_amount: Money | None = None
 
 
 class DocumentItemRead(CoreReadSchema):

@@ -20,6 +20,12 @@ def test_core_models_register_the_required_tables_with_jsonb_metadata() -> None:
         assert table.name in {table.name for table in Base.metadata.tables.values()}
         assert table.c.metadata.type.__class__.__name__ == "JSONB"
 
+    product_columns = set(Product.__table__.columns.keys())
+    assert "is_stock_item" not in product_columns
+    assert "valuation_rate" not in product_columns
+    assert "weight_per_unit" not in product_columns
+    assert "weight_unit" not in product_columns
+
 
 def test_document_models_preserve_sifen_and_exact_financial_fields() -> None:
     document = Document.__table__

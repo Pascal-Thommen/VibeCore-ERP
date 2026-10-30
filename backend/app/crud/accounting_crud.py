@@ -142,8 +142,8 @@ async def _line_values(
 
     return {
         **values,
-        "functional_debit": _money(debit * exchange_rate),
-        "functional_credit": _money(credit * exchange_rate),
+        "functional_debit": _money(debit * exchange_rate, "PYG"),
+        "functional_credit": _money(credit * exchange_rate, "PYG"),
     }
 
 
@@ -162,6 +162,8 @@ async def create_journal_entry(session: AsyncSession, data: JournalEntryCreate) 
     await _require_document_if_present(session, entry_values.get("source_document_id"))
     await _require_posted_reversal_target(session, entry_values.get("reverses_entry_id"))
     entry_values["status"] = "DRAFT"
+    entry_values["functional_currency_code"] = data.functional_currency_code
+    entry_values["exchange_rate"] = data.exchange_rate
     journal_entry = JournalEntry(**entry_values)
     session.add(journal_entry)
     await session.flush()
@@ -203,8 +205,8 @@ async def update_journal_entry(
         setattr(journal_entry, field, value)
     if "exchange_rate" in values:
         for line in journal_entry.lines:
-            line.functional_debit = _money(line.debit * journal_entry.exchange_rate)
-            line.functional_credit = _money(line.credit * journal_entry.exchange_rate)
+            line.functional_debit = _money(line.debit * journal_entry.exchange_rate, "PYG")
+            line.functional_credit = _money(line.credit * journal_entry.exchange_rate, "PYG")
     await session.commit()
     return await get_journal_entry(session, journal_entry_id)
 
