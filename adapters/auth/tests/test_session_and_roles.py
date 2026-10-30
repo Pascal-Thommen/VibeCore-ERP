@@ -19,6 +19,10 @@ def test_role_mapping(test_settings):
     assert "ADMIN" in admin_roles
     assert "ACCOUNTANT" in admin_roles
 
+    # System agent email
+    agent_roles = manager.map_roles("agent@vibecore.org")
+    assert agent_roles == ["SYSTEM_AGENT"]
+
     # Standard user
     user_roles = manager.map_roles("standard.user@example.com")
     assert user_roles == ["USER"]

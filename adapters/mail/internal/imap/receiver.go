@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ func (r *Receiver) Start() error {
 		"host", r.cfg.IMAPHost,
 		"port", r.cfg.IMAPPort,
 		"mailbox", r.cfg.IMAPMailbox,
-		"idle", r.cfg.IMAPIdleEnabled,
+		"poll_interval", r.cfg.IMAPPollInterval,
 	)
 
 	r.wg.Add(1)
@@ -112,22 +113,33 @@ func (r *Receiver) connectAndListen() error {
 	addr := fmt.Sprintf("%s:%d", r.cfg.IMAPHost, r.cfg.IMAPPort)
 	opts := &imapclient.Options{}
 
+	tlsCfg := &tls.Config{ServerName: r.cfg.IMAPHost}
 	if r.cfg.Environment == "test" || r.cfg.Environment == "development" {
-		opts.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		tlsCfg.InsecureSkipVerify = true
+		opts.TLSConfig = tlsCfg
 	}
 
-	var client *imapclient.Client
-	var err error
-
-	if r.cfg.IMAPUseTLS {
-		client, err = imapclient.DialTLS(addr, opts)
-	} else {
-		client, err = imapclient.DialInsecure(addr, opts)
-	}
-
+	rawConn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed connecting to IMAP server at '%s': %w", addr, err)
 	}
+
+	var conn net.Conn = rawConn
+	if r.cfg.IMAPUseTLS {
+		tlsConn := tls.Client(rawConn, tlsCfg)
+		if err := tlsConn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			_ = rawConn.Close()
+			return fmt.Errorf("failed setting TLS handshake deadline: %w", err)
+		}
+		if err := tlsConn.Handshake(); err != nil {
+			_ = rawConn.Close()
+			return fmt.Errorf("failed TLS handshake with IMAP server at '%s': %w", addr, err)
+		}
+		_ = tlsConn.SetDeadline(time.Time{})
+		conn = tlsConn
+	}
+
+	client := imapclient.New(conn, opts)
 
 	r.mu.Lock()
 	r.client = client
@@ -165,36 +177,16 @@ func (r *Receiver) connectAndListen() error {
 		r.logger.Warn("initial unseen message fetch error", "error", err)
 	}
 
-	// Loop with IDLE or Poll
+	pollInterval := r.cfg.IMAPPollInterval
+	if pollInterval <= 0 {
+		pollInterval = 30 * time.Second
+	}
+
 	for {
 		select {
 		case <-r.ctx.Done():
 			return nil
-		default:
-			if r.cfg.IMAPIdleEnabled {
-				idleCmd, err := client.Idle()
-				if err != nil {
-					r.logger.Warn("IMAP IDLE not supported or failed; falling back to periodic poll", "error", err)
-					time.Sleep(r.cfg.IMAPPollInterval)
-				} else {
-					// Wait for poll interval or context cancel, then close IDLE and fetch new messages
-					select {
-					case <-r.ctx.Done():
-						_ = idleCmd.Close()
-						return nil
-					case <-time.After(r.cfg.IMAPPollInterval):
-						_ = idleCmd.Close()
-					}
-				}
-			} else {
-				select {
-				case <-r.ctx.Done():
-					return nil
-				case <-time.After(r.cfg.IMAPPollInterval):
-				}
-			}
-
-			// Fetch unseen messages
+		case <-time.After(pollInterval):
 			if err := r.fetchUnseenMessages(client); err != nil {
 				return err
 			}

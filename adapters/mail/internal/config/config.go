@@ -36,7 +36,6 @@ type Config struct {
 	IMAPUseTLS       bool
 	IMAPMailbox      string
 	IMAPPollInterval time.Duration
-	IMAPIdleEnabled  bool
 	IMAPMarkAsSeen   bool
 
 	// Queue & Persistence settings
@@ -54,11 +53,6 @@ type Config struct {
 	StatusWebhookURL     string
 	StatusWebhookSecret  string
 	StatusWebhookTimeout time.Duration
-
-	// Webhook validation secrets
-	ResendWebhookSecret  string
-	BrevoWebhookKey      string
-	SendGridPublicKey    string
 }
 
 // LoadFromEnv loads configuration from environment variables with sensible defaults.
@@ -88,7 +82,6 @@ func LoadFromEnv() *Config {
 		IMAPUseTLS:       getEnvAsBool("IMAP_USE_TLS", true),
 		IMAPMailbox:      getEnv("IMAP_MAILBOX", "INBOX"),
 		IMAPPollInterval: getEnvAsDuration("IMAP_POLL_INTERVAL", 30*time.Second),
-		IMAPIdleEnabled:  getEnvAsBool("IMAP_IDLE_ENABLED", true),
 		IMAPMarkAsSeen:   getEnvAsBool("IMAP_MARK_AS_SEEN", true),
 
 		QueueDBPath:            getEnv("QUEUE_DB_PATH", "data/mail_queue.db"),
@@ -103,10 +96,6 @@ func LoadFromEnv() *Config {
 		StatusWebhookURL:     getEnv("STATUS_WEBHOOK_URL", ""),
 		StatusWebhookSecret:  getEnv("STATUS_WEBHOOK_SECRET", ""),
 		StatusWebhookTimeout: getEnvAsDuration("STATUS_WEBHOOK_TIMEOUT", 10*time.Second),
-
-		ResendWebhookSecret: getEnv("RESEND_WEBHOOK_SECRET", ""),
-		BrevoWebhookKey:     getEnv("BREVO_WEBHOOK_KEY", ""),
-		SendGridPublicKey:   getEnv("SENDGRID_PUBLIC_KEY", ""),
 	}
 }
 

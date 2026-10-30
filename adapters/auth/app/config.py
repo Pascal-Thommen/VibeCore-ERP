@@ -16,11 +16,11 @@ class Settings(BaseSettings):
 
     # Google OAuth 2.0 & OIDC
     google_client_id: str = Field(
-        default="mock-client-id.apps.googleusercontent.com",
+        default="vibecore-dev-client-id.apps.googleusercontent.com",
         description="Google OAuth 2.0 Client ID",
     )
     google_client_secret: str = Field(
-        default="mock-client-secret-key-12345",
+        default="vibecore-dev-client-secret-key-12345",
         description="Google OAuth 2.0 Client Secret",
     )
     google_redirect_uri: str = Field(
@@ -90,10 +90,14 @@ class Settings(BaseSettings):
         description="Cookie name for VibeCore session token",
     )
 
-    # Role Mapping & Access Control
+    # Role Mapping & Access Control (ADR 0004: ADMIN, ACCOUNTANT, SYSTEM_AGENT)
     admin_emails: list[str] = Field(
         default=["pascal@vibecore.org", "pascalsolarluchs@gmail.com"],
         description="List of Google account emails granted ADMIN and ACCOUNTANT roles",
+    )
+    system_agent_emails: list[str] = Field(
+        default=["agent@vibecore.org"],
+        description="List of Google account emails granted SYSTEM_AGENT role",
     )
     default_role: str = Field(
         default="USER",

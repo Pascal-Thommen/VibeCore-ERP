@@ -6,7 +6,6 @@ import (
 	htmltmpl "html/template"
 	"sync"
 	texttmpl "text/template"
-	"time"
 )
 
 // Engine manages HTML and text templates with safe auto-escaping.
@@ -27,46 +26,17 @@ func NewEngine() *Engine {
 	return e
 }
 
-// defaultFuncs returns helper functions available in templates.
-func (e *Engine) defaultFuncs() htmltmpl.FuncMap {
-	return htmltmpl.FuncMap{
-		"formatDate": func(t time.Time, layout string) string {
-			if layout == "" {
-				layout = "2006-01-02"
-			}
-			return t.Format(layout)
-		},
-		"formatAmount": func(val any, currency string) string {
-			return fmt.Sprintf("%v %s", val, currency)
-		},
-	}
-}
-
-func (e *Engine) textFuncs() texttmpl.FuncMap {
-	return texttmpl.FuncMap{
-		"formatDate": func(t time.Time, layout string) string {
-			if layout == "" {
-				layout = "2006-01-02"
-			}
-			return t.Format(layout)
-		},
-		"formatAmount": func(val any, currency string) string {
-			return fmt.Sprintf("%v %s", val, currency)
-		},
-	}
-}
-
 // Register registers or updates a template pair (HTML and Plaintext).
 func (e *Engine) Register(name, htmlSrc, textSrc string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	ht, err := htmltmpl.New(name).Funcs(e.defaultFuncs()).Parse(htmlSrc)
+	ht, err := htmltmpl.New(name).Parse(htmlSrc)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template '%s': %w", name, err)
 	}
 
-	tt, err := texttmpl.New(name).Funcs(e.textFuncs()).Parse(textSrc)
+	tt, err := texttmpl.New(name).Parse(textSrc)
 	if err != nil {
 		return fmt.Errorf("failed to parse text template '%s': %w", name, err)
 	}
@@ -187,26 +157,4 @@ VibeCore ERP System`
 VibeCore Benachrichtigungssystem`
 
 	_ = e.Register("notification", notifHTML, notifText)
-
-	// 3. Verification code template
-	verifyHTML := `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Sicherheitscode</title></head>
-<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-  <div style="max-width: 500px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; text-align: center;">
-    <h2 style="color: #2c5282;">VibeCore Sicherheitscode</h2>
-    <p>Verwenden Sie den folgenden Code zur Bestätigung:</p>
-    <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #2b6cb0; margin: 20px 0; padding: 15px; background: #ebf8ff; border-radius: 6px;">{{.Code}}</div>
-    <p style="color: #718096; font-size: 14px;">Dieser Code ist {{.ExpiryMinutes}} Minuten gültig. Geben Sie ihn niemals an Dritte weiter.</p>
-  </div>
-</body>
-</html>`
-
-	verifyText := `VibeCore Sicherheitscode
-
-Ihr Bestätigungscode lautet: {{.Code}}
-
-Dieser Code ist {{.ExpiryMinutes}} Minuten gültig. Geben Sie ihn niemals an Dritte weiter.`
-
-	_ = e.Register("verification", verifyHTML, verifyText)
 }

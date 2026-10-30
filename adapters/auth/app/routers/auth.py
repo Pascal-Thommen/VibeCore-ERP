@@ -263,11 +263,15 @@ async def google_callback(
         data={"user_id": user_info.user_id, "roles": user_info.roles},
     )
 
+    redirect_after_login = state_data.get("redirect_after_login")
+    token_meta = {"redirect_after_login": redirect_after_login} if redirect_after_login else None
+
     return TokenResponse(
         access_token=access_token,
         token_type="Bearer",
         expires_in=settings.jwt_expiration_minutes * 60,
         user=user_info,
+        meta=token_meta,
     )
 
 

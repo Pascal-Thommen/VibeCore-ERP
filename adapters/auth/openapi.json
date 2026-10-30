@@ -393,8 +393,35 @@
             ],
             "title": "Trace Id",
             "description": "Correlation Trace ID"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "Extensible metadata"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Extensible custom data"
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "required": [
           "error",
@@ -457,6 +484,19 @@
             ],
             "title": "Meta",
             "description": "Extensible metadata"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Extensible custom data"
           }
         },
         "additionalProperties": true,
@@ -491,6 +531,19 @@
             ],
             "title": "Meta",
             "description": "Extensible metadata"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Extensible custom data"
           }
         },
         "additionalProperties": true,
@@ -514,8 +567,35 @@
             "title": "Message",
             "description": "Human readable message",
             "default": "Erfolgreich abgemeldet."
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "Extensible metadata"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Extensible custom data"
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "title": "LogoutResponse"
       },
@@ -539,6 +619,32 @@
             "type": "string",
             "title": "Timestamp",
             "description": "ISO 8601 current timestamp"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "Extensible metadata"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data",
+            "description": "Extensible custom data"
           }
         },
         "additionalProperties": true,

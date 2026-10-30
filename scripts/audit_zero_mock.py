@@ -472,6 +472,7 @@ class ZeroMockAuditor:
             ("Stripe Adapter", self.root_dir / "adapters" / "stripe"),
             ("Storage Adapter", self.root_dir / "adapters" / "storage"),
             ("SIFEN Adapter", self.root_dir / "adapters" / "sifen"),
+            ("WhatsApp Adapter", self.root_dir / "adapters" / "whatsapp"),
         ]
 
         for service_name, service_dir in services:

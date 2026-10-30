@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/Pascal-Thommen/VibeCore-ERP/adapters/mail/internal/config"
@@ -24,9 +23,6 @@ type Tracker struct {
 	q          *queue.BoltQueue
 	httpClient *http.Client
 	logger     *slog.Logger
-
-	mu           sync.RWMutex
-	recentEvents []models.StatusEvent
 }
 
 // NewTracker creates a new Tracker instance.
@@ -42,8 +38,7 @@ func NewTracker(cfg *config.Config, q *queue.BoltQueue, logger *slog.Logger) *Tr
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
-		logger:       logger,
-		recentEvents: make([]models.StatusEvent, 0, 100),
+		logger: logger,
 	}
 }
 
@@ -65,44 +60,18 @@ func (t *Tracker) GetStatus(ctx context.Context, id string) (*models.StatusRespo
 		UpdatedAt:     mail.UpdatedAt,
 		SentAt:        mail.SentAt,
 		Metadata:      mail.Request.Metadata,
+		Meta:          mail.Request.Meta,
+		CustomData:    mail.Request.CustomData,
 	}, nil
 }
 
-// Dispatch satisfies queue.EventDispatcherInterface. It records the event and dispatches webhook.
+// Dispatch satisfies queue.EventDispatcherInterface. It forwards webhook events when configured.
 func (t *Tracker) Dispatch(ctx context.Context, event models.StatusEvent) {
-	t.recordEvent(event)
-
 	if t.cfg.StatusWebhookURL != "" {
-		// Forward webhook synchronously or in controlled background goroutine
 		go func(evt models.StatusEvent) {
 			_ = t.forwardWebhookWithRetry(context.Background(), evt)
 		}(event)
 	}
-}
-
-func (t *Tracker) recordEvent(event models.StatusEvent) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.recentEvents = append(t.recentEvents, event)
-	if len(t.recentEvents) > 100 {
-		t.recentEvents = t.recentEvents[len(t.recentEvents)-100:]
-	}
-}
-
-// ListRecentEvents returns up to limit recent events.
-func (t *Tracker) ListRecentEvents(limit int) []models.StatusEvent {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	if limit <= 0 || limit > len(t.recentEvents) {
-		limit = len(t.recentEvents)
-	}
-
-	res := make([]models.StatusEvent, limit)
-	start := len(t.recentEvents) - limit
-	copy(res, t.recentEvents[start:])
-	return res
 }
 
 func (t *Tracker) forwardWebhookWithRetry(ctx context.Context, event models.StatusEvent) error {

@@ -89,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        adapter: [auth, pagopar, stripe, storage, sifen]
+        adapter: [auth, pagopar, stripe, storage, sifen, whatsapp]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

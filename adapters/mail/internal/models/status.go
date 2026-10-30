@@ -44,6 +44,8 @@ type StatusResponse struct {
 	UpdatedAt      time.Time      `json:"updated_at"`
 	SentAt         *time.Time     `json:"sent_at,omitempty"`
 	Metadata       map[string]any `json:"metadata,omitempty"`
+	Meta           map[string]any `json:"meta,omitempty"`
+	CustomData     map[string]any `json:"custom_data,omitempty"`
 }
 
 // StatusEvent is dispatched to the STATUS_WEBHOOK_URL on lifecycle state changes.
