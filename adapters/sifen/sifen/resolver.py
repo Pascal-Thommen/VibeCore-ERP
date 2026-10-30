@@ -3,7 +3,7 @@ RUC Profile Resolver Service for VibeCore SIFEN Adapter.
 
 Resolves a tenant's RUC obligations to determine:
 1. DTE Document Type (Factura Electrónica vs Boleta Resimple Electrónica)
-2. Tax Calculation Mode (Full IVA 10%/5%/Exento breakdown vs Gross tax-exempt)
+2. Tax Calculation Mode (Gross-inclusive IVA 10%/5%/Exento per Ley 6380/19 vs Gross tax-exempt)
 """
 
 from decimal import ROUND_HALF_UP, Decimal
@@ -34,13 +34,11 @@ class SifenProfileResolver:
     def extract_obligation_codes(
         cls, profile: MandantRucProfile | dict[str, Any] | list[Any]
     ) -> list[int]:
-        """Extract a normalized list of integer obligation codes from various input formats."""
+        """Extract a normalized list of integer obligation codes."""
         if isinstance(profile, MandantRucProfile):
             raw_obligaciones = profile.obligaciones
         elif isinstance(profile, dict):
-            raw_obligaciones = (
-                profile.get("obligaciones") or profile.get("obligations") or []
-            )
+            raw_obligaciones = profile.get("obligaciones", [])
         elif isinstance(profile, list):
             raw_obligaciones = profile
         else:
@@ -48,16 +46,12 @@ class SifenProfileResolver:
 
         codes: list[int] = []
         for item in raw_obligaciones:
-            if isinstance(item, int):
+            if isinstance(item, int) and not isinstance(item, bool):
                 codes.append(item)
-            elif isinstance(item, str) and item.isdigit():
-                codes.append(int(item))
             elif isinstance(item, MandantObligacion):
                 codes.append(item.code)
             elif isinstance(item, dict) and "code" in item:
                 codes.append(int(item["code"]))
-            elif hasattr(item, "code"):
-                codes.append(int(item.code))
             else:
                 raise ValueError(
                     f"Ungueltiger Steuerpflicht-Eintrag (Obligacion): {item}"
@@ -79,7 +73,6 @@ class SifenProfileResolver:
         """
         codes = cls.extract_obligation_codes(profile)
 
-        # Resolution hierarchy: 700 (General) > 701 (Simple) > 702 (Resimple)
         if OBLIGACION_IRE_GENERAL in codes:
             return ResolvedProfile.from_regime(
                 TaxRegime.IRE_GENERAL, OBLIGACION_IRE_GENERAL
@@ -111,25 +104,20 @@ class SifenProfileResolver:
         currency: str = SIFEN_CURRENCY_PYG,
     ) -> ItemTaxDetail:
         """
-        Calculate tax details for an item according to the resolved profile and SIFEN formula.
+        Calculate tax details for an item according to Ley 6380/19 and SIFEN Technical Manual v150.
 
-        SIFEN Formula:
-        For IVA 10%:
-          dBasGravIVA = (100 * line_total) / 110
-          dLiqIVAItem = dBasGravIVA * 0.10 (or line_total / 11)
-        For IVA 5%:
-          dBasGravIVA = (100 * line_total) / 105
-          dLiqIVAItem = dBasGravIVA * 0.05 (or line_total / 21)
-        For IRE Resimple (702):
-          No IVA calculation, tax-exempt marked, gross amount only.
+        Guarantees exact balance (base_gravada + liquidacion_iva == total_item) without rounding drift:
+        - IVA 10%: liquidacion_iva = round(line_total / 11), base_gravada = line_total - liquidacion_iva
+        - IVA 5%:  liquidacion_iva = round(line_total / 21), base_gravada = line_total - liquidacion_iva
+        - IRE Resimple (702) or Exento (0%): liquidacion_iva = 0, base_gravada = 0
         """
-        line_total = (quantity * unit_price) - discount
-        if line_total < Decimal(0):
-            raise ValueError(f"Line total must not be negative: {line_total}")
+        raw_total = (quantity * unit_price) - discount
+        if raw_total < Decimal(0):
+            raise ValueError(f"Line total must not be negative: {raw_total}")
 
-        is_pyg = currency.upper() == SIFEN_CURRENCY_PYG
+        quantum = Decimal(1) if currency.upper() == SIFEN_CURRENCY_PYG else Decimal("0.01")
+        line_total = raw_total.quantize(quantum, rounding=ROUND_HALF_UP)
 
-        # IRE Resimple (702): Keine IVA, nur Bruttoendbetrag
         if not resolved.iva_applicable:
             return ItemTaxDetail(
                 afectacion_iva=IVA_AFECTACION_EXENTO,
@@ -141,48 +129,25 @@ class SifenProfileResolver:
                 total_item=line_total,
             )
 
-        # IRE General (700) and Simple (701): Full IVA resolution
         if tax_rate == Decimal(10):
             afectacion_iva = IVA_AFECTACION_GRAVADO
             des_afectacion = IVA_AFECTACION_DESCRIPTIONS[IVA_AFECTACION_GRAVADO]
             proporcion_iva = Decimal(100)
             tasa_iva = Decimal(10)
-
-            if is_pyg:
-                base_gravada = (line_total / Decimal("1.1")).quantize(
-                    Decimal(1), rounding=ROUND_HALF_UP
-                )
-                liquidacion_iva = (line_total / Decimal(11)).quantize(
-                    Decimal(1), rounding=ROUND_HALF_UP
-                )
-            else:
-                base_gravada = (line_total / Decimal("1.1")).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
-                liquidacion_iva = (base_gravada * Decimal("0.10")).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
+            liquidacion_iva = (line_total / Decimal(11)).quantize(
+                quantum, rounding=ROUND_HALF_UP
+            )
+            base_gravada = line_total - liquidacion_iva
 
         elif tax_rate == Decimal(5):
             afectacion_iva = IVA_AFECTACION_GRAVADO
             des_afectacion = IVA_AFECTACION_DESCRIPTIONS[IVA_AFECTACION_GRAVADO]
             proporcion_iva = Decimal(100)
             tasa_iva = Decimal(5)
-
-            if is_pyg:
-                base_gravada = (line_total / Decimal("1.05")).quantize(
-                    Decimal(1), rounding=ROUND_HALF_UP
-                )
-                liquidacion_iva = (line_total / Decimal(21)).quantize(
-                    Decimal(1), rounding=ROUND_HALF_UP
-                )
-            else:
-                base_gravada = (line_total / Decimal("1.05")).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
-                liquidacion_iva = (base_gravada * Decimal("0.05")).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
+            liquidacion_iva = (line_total / Decimal(21)).quantize(
+                quantum, rounding=ROUND_HALF_UP
+            )
+            base_gravada = line_total - liquidacion_iva
 
         elif tax_rate == Decimal(0):
             afectacion_iva = IVA_AFECTACION_EXENTO

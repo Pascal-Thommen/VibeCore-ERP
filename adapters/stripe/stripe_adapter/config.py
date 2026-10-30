@@ -17,12 +17,12 @@ class Settings(BaseSettings):
 
     # Stripe API Credentials
     stripe_secret_key: str = Field(
-        default="sk_test_mock_secret_key_12345",
+        default="sk_test_default_secret_key",
         validation_alias="STRIPE_SECRET_KEY",
         description="Secret API key issued by Stripe dashboard",
     )
     stripe_publishable_key: str = Field(
-        default="pk_test_mock_publishable_key_12345",
+        default="pk_test_default_publishable_key",
         validation_alias="STRIPE_PUBLISHABLE_KEY",
         description="Publishable API key for client-side Stripe integrations",
     )

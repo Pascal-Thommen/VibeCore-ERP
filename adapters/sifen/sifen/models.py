@@ -1,10 +1,11 @@
 """
-Domain models and schemas for SIFEN Dynamic DTE resolution and XML generation.
+Domain models and schemas for SIFEN Dynamic DTE resolution, XML generation, and Outbox Queue.
 """
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from enum import StrEnum
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -18,6 +19,12 @@ from sifen.constants import (
 
 Ruc = Annotated[str, StringConstraints(strict=True, pattern=r"^\d{5,8}$")]
 VerificationDigit = Annotated[str, StringConstraints(strict=True, pattern=r"^\d$")]
+
+
+class OutboxStatus(StrEnum):
+    QUEUED = "QUEUED"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
 
 
 class MandantObligacion(BaseModel):
@@ -39,16 +46,8 @@ class MandantRucProfile(BaseModel):
     legal_name: str
     trade_name: str | None = None
     obligaciones: list[int | MandantObligacion]
-    address: str = "Asuncion, Paraguay"
-    city: str = "Asuncion"
-    department: str = "Capital"
-    department_code: str = "1"
-    district_code: str = "1"
-    city_code: str = "1"
-    phone: str = "021000000"
-    email: str = "facturacion@vibecore.local"
-    economic_activity_code: str = "62010"
-    economic_activity_desc: str = "Actividades de programacion informatica"
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
 
 
 class ResolvedProfile(BaseModel):
@@ -152,3 +151,64 @@ class DteHeaderInput(BaseModel):
     operation_type: int = 1  # 1=B2B, 2=B2C, 3=B2G, 4=B2F
     currency: str = "PYG"
     exchange_rate: Decimal = Decimal(1)
+
+
+class GenerateXmlRequest(BaseModel):
+    """Request payload for generating SIFEN DTE XML."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    header: DteHeaderInput
+    items: list[DteItemInput] = Field(min_length=1)
+    profile: MandantRucProfile
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
+
+
+class SubmitDteRequest(BaseModel):
+    """Request payload for generating and transmitting a SIFEN DTE with persistent outbox fallback."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    header: DteHeaderInput
+    items: list[DteItemInput] = Field(min_length=1)
+    profile: MandantRucProfile
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
+
+
+class DteOutboxResponse(BaseModel):
+    """Response representing a DTE submission or outbox entry."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    cdc: str
+    dte_type: int
+    issuer_ruc: str
+    document_number: str
+    total_amount: Decimal
+    currency: str
+    status: OutboxStatus
+    sifen_code: str | None = None
+    sifen_message: str | None = None
+    protocol_number: str | None = None
+    retry_count: int
+    last_error: str | None = None
+    xml_payload: str
+    created_at: datetime
+    updated_at: datetime
+    transmitted_at: datetime | None = None
+    meta: dict[str, Any] | None = None
+    custom_data: dict[str, Any] | None = None
+
+
+class OutboxFlushResponse(BaseModel):
+    """Result of flushing queued DTEs from the persistent outbox."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    processed_count: int
+    accepted_count: int
+    rejected_count: int
+    still_queued_count: int
+    items: list[DteOutboxResponse] = Field(default_factory=list)

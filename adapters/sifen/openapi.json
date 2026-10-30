@@ -2,14 +2,89 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VibeCore SIFEN Adapter API",
-    "version": "1.0.0",
-    "description": "Isolated adapter service for Paraguayan SIFEN electronic invoicing and dynamic DTE resolution."
+    "description": "Isolated adapter service for Paraguayan SIFEN electronic invoicing, dynamic DTE resolution, and persistent Outbox transmission.",
+    "version": "1.0.0"
   },
   "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Observability"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Observability"
+        ],
+        "summary": "Readiness Check",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sifen/resolve": {
       "post": {
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
         "summary": "Resolve Mandant RUC profile into DTE type and tax calculation policy",
-        "operationId": "resolveRucProfile",
+        "operationId": "resolve_ruc_profile_api_v1_sifen_resolve_post",
+        "parameters": [
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -22,7 +97,7 @@
         },
         "responses": {
           "200": {
-            "description": "Resolved DTE configuration",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -31,16 +106,60 @@
               }
             }
           },
-          "400": {
-            "description": "Invalid RUC profile or missing tax obligation"
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/sifen/generate-xml": {
       "post": {
-        "summary": "Generate official SIFEN XML for Factura Electrónica or Boleta Resimple Electrónica",
-        "operationId": "generateSifenXml",
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
+        "summary": "Generate official SIFEN XML for Factura Electr\u00f3nica or Boleta Resimple Electr\u00f3nica",
+        "operationId": "generate_sifen_xml_api_v1_sifen_generate_xml_post",
+        "parameters": [
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -53,17 +172,369 @@
         },
         "responses": {
           "200": {
-            "description": "Generated XML document",
+            "description": "Successful Response",
             "content": {
-              "application/xml": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/submit": {
+      "post": {
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
+        "summary": "Generate and submit DTE to SIFEN with persistent Outbox Queue fallback on network outage",
+        "operationId": "submit_dte_api_v1_sifen_submit_post",
+        "parameters": [
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
                   "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Idempotency-Key"
+            }
+          },
+          {
+            "name": "X-Correlation-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Correlation-Id"
+            }
+          },
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitDteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DteOutboxResponse"
                 }
               }
             }
           },
-          "400": {
-            "description": "Validation or calculation error"
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/outbox/flush": {
+      "post": {
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
+        "summary": "Retry all QUEUED DTEs from the persistent Outbox Queue",
+        "operationId": "flush_outbox_api_v1_sifen_outbox_flush_post",
+        "parameters": [
+          {
+            "name": "X-Correlation-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Correlation-Id"
+            }
+          },
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboxFlushResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/outbox": {
+      "get": {
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
+        "summary": "List DTE records in the persistent Outbox Queue",
+        "operationId": "list_outbox_records_api_v1_sifen_outbox_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DteOutboxResponse"
+                  },
+                  "title": "Response List Outbox Records Api V1 Sifen Outbox Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sifen/outbox/{cdc}": {
+      "get": {
+        "tags": [
+          "SIFEN Electronic Invoicing"
+        ],
+        "summary": "Retrieve DTE submission and Outbox status by 44-digit CDC",
+        "operationId": "get_outbox_record_api_v1_sifen_outbox__cdc__get",
+        "parameters": [
+          {
+            "name": "cdc",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cdc"
+            }
+          },
+          {
+            "name": "X-Adapter-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Adapter-Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DteOutboxResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -71,34 +542,669 @@
   },
   "components": {
     "schemas": {
-      "MandantRucProfile": {
+      "DteHeaderInput": {
+        "properties": {
+          "timbrado_number": {
+            "type": "string",
+            "pattern": "^\\d{8}$",
+            "title": "Timbrado Number"
+          },
+          "establishment_code": {
+            "type": "string",
+            "pattern": "^\\d{3}$",
+            "title": "Establishment Code",
+            "default": "001"
+          },
+          "point_of_issue_code": {
+            "type": "string",
+            "pattern": "^\\d{3}$",
+            "title": "Point Of Issue Code",
+            "default": "001"
+          },
+          "document_number": {
+            "type": "string",
+            "pattern": "^\\d{7}$",
+            "title": "Document Number"
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issue Date"
+          },
+          "security_code": {
+            "type": "string",
+            "pattern": "^\\d{9}$",
+            "title": "Security Code"
+          },
+          "emission_type": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Emission Type",
+            "default": 1
+          },
+          "contributor_type": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Contributor Type",
+            "default": 2
+          },
+          "issuer_ruc": {
+            "type": "string",
+            "pattern": "^\\d{5,8}$",
+            "title": "Issuer Ruc"
+          },
+          "issuer_dv": {
+            "type": "string",
+            "pattern": "^\\d$",
+            "title": "Issuer Dv"
+          },
+          "issuer_legal_name": {
+            "type": "string",
+            "title": "Issuer Legal Name"
+          },
+          "issuer_trade_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Trade Name"
+          },
+          "issuer_address": {
+            "type": "string",
+            "title": "Issuer Address",
+            "default": "Asuncion, Paraguay"
+          },
+          "issuer_city": {
+            "type": "string",
+            "title": "Issuer City",
+            "default": "Asuncion"
+          },
+          "issuer_department_code": {
+            "type": "string",
+            "title": "Issuer Department Code",
+            "default": "1"
+          },
+          "issuer_district_code": {
+            "type": "string",
+            "title": "Issuer District Code",
+            "default": "1"
+          },
+          "issuer_city_code": {
+            "type": "string",
+            "title": "Issuer City Code",
+            "default": "1"
+          },
+          "issuer_economic_activity_code": {
+            "type": "string",
+            "title": "Issuer Economic Activity Code",
+            "default": "62010"
+          },
+          "issuer_economic_activity_desc": {
+            "type": "string",
+            "title": "Issuer Economic Activity Desc",
+            "default": "Actividades de programacion informatica"
+          },
+          "receiver_ruc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Ruc"
+          },
+          "receiver_dv": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Dv"
+          },
+          "receiver_doc_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Doc Number"
+          },
+          "receiver_doc_type": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Doc Type"
+          },
+          "receiver_legal_name": {
+            "type": "string",
+            "title": "Receiver Legal Name",
+            "default": "Consumidor Final"
+          },
+          "receiver_nature": {
+            "type": "integer",
+            "title": "Receiver Nature",
+            "default": 1
+          },
+          "operation_type": {
+            "type": "integer",
+            "title": "Operation Type",
+            "default": 1
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "PYG"
+          },
+          "exchange_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Exchange Rate",
+            "default": "1"
+          }
+        },
+        "additionalProperties": false,
         "type": "object",
-        "required": ["ruc", "dv", "legal_name", "obligaciones"],
+        "required": [
+          "timbrado_number",
+          "document_number",
+          "issue_date",
+          "security_code",
+          "issuer_ruc",
+          "issuer_dv",
+          "issuer_legal_name"
+        ],
+        "title": "DteHeaderInput",
+        "description": "Input header data for SIFEN DTE generation."
+      },
+      "DteItemInput": {
+        "properties": {
+          "line_number": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Line Number"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "title": "Unit Of Measure",
+            "default": "77"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "discount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Discount",
+            "default": "0"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Tax Rate",
+            "default": "10"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line_number",
+          "description",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "DteItemInput",
+        "description": "Input line item for SIFEN DTE generation."
+      },
+      "DteOutboxResponse": {
+        "properties": {
+          "cdc": {
+            "type": "string",
+            "title": "Cdc"
+          },
+          "dte_type": {
+            "type": "integer",
+            "title": "Dte Type"
+          },
+          "issuer_ruc": {
+            "type": "string",
+            "title": "Issuer Ruc"
+          },
+          "document_number": {
+            "type": "string",
+            "title": "Document Number"
+          },
+          "total_amount": {
+            "type": "string",
+            "title": "Total Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OutboxStatus"
+          },
+          "sifen_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sifen Code"
+          },
+          "sifen_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sifen Message"
+          },
+          "protocol_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Number"
+          },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "xml_payload": {
+            "type": "string",
+            "title": "Xml Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "transmitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transmitted At"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cdc",
+          "dte_type",
+          "issuer_ruc",
+          "document_number",
+          "total_amount",
+          "currency",
+          "status",
+          "retry_count",
+          "xml_payload",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DteOutboxResponse",
+        "description": "Response representing a DTE submission or outbox entry."
+      },
+      "GenerateXmlRequest": {
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/DteHeaderInput"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DteItemInput"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/MandantRucProfile"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "header",
+          "items",
+          "profile"
+        ],
+        "title": "GenerateXmlRequest",
+        "description": "Request payload for generating SIFEN DTE XML."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MandantObligacion": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "MandantObligacion",
+        "description": "A registered tax obligation on the taxpayer's RUC profile."
+      },
+      "MandantRucProfile": {
         "properties": {
           "ruc": {
             "type": "string",
-            "pattern": "^[0-9]{5,8}$"
+            "pattern": "^\\d{5,8}$",
+            "title": "Ruc"
           },
           "dv": {
             "type": "string",
-            "pattern": "^[0-9]$"
+            "pattern": "^\\d$",
+            "title": "Dv"
           },
           "legal_name": {
-            "type": "string"
+            "type": "string",
+            "title": "Legal Name"
           },
           "trade_name": {
-            "type": "string",
-            "nullable": true
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trade Name"
           },
           "obligaciones": {
-            "type": "array",
             "items": {
-              "type": "integer"
-            }
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "$ref": "#/components/schemas/MandantObligacion"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Obligaciones"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
           }
-        }
+        },
+        "type": "object",
+        "required": [
+          "ruc",
+          "dv",
+          "legal_name",
+          "obligaciones"
+        ],
+        "title": "MandantRucProfile",
+        "description": "The fiscal profile of the tenant/mandant issuing electronic documents."
+      },
+      "OutboxFlushResponse": {
+        "properties": {
+          "processed_count": {
+            "type": "integer",
+            "title": "Processed Count"
+          },
+          "accepted_count": {
+            "type": "integer",
+            "title": "Accepted Count"
+          },
+          "rejected_count": {
+            "type": "integer",
+            "title": "Rejected Count"
+          },
+          "still_queued_count": {
+            "type": "integer",
+            "title": "Still Queued Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DteOutboxResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed_count",
+          "accepted_count",
+          "rejected_count",
+          "still_queued_count"
+        ],
+        "title": "OutboxFlushResponse",
+        "description": "Result of flushing queued DTEs from the persistent outbox."
+      },
+      "OutboxStatus": {
+        "type": "string",
+        "enum": [
+          "QUEUED",
+          "ACCEPTED",
+          "REJECTED"
+        ],
+        "title": "OutboxStatus"
       },
       "ResolvedProfile": {
+        "properties": {
+          "regime": {
+            "$ref": "#/components/schemas/TaxRegime"
+          },
+          "obligation_code": {
+            "type": "integer",
+            "title": "Obligation Code"
+          },
+          "dte_type": {
+            "type": "integer",
+            "title": "Dte Type"
+          },
+          "dte_type_code": {
+            "type": "string",
+            "title": "Dte Type Code"
+          },
+          "dte_type_description": {
+            "type": "string",
+            "title": "Dte Type Description"
+          },
+          "iva_applicable": {
+            "type": "boolean",
+            "title": "Iva Applicable"
+          },
+          "requires_iva_breakdown": {
+            "type": "boolean",
+            "title": "Requires Iva Breakdown"
+          }
+        },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "regime",
@@ -109,48 +1215,101 @@
           "iva_applicable",
           "requires_iva_breakdown"
         ],
-        "properties": {
-          "regime": {
-            "type": "string",
-            "enum": ["IRE_GENERAL", "IRE_SIMPLE", "IRE_RESIMPLE"]
-          },
-          "obligation_code": {
-            "type": "integer"
-          },
-          "dte_type": {
-            "type": "integer"
-          },
-          "dte_type_code": {
-            "type": "string"
-          },
-          "dte_type_description": {
-            "type": "string"
-          },
-          "iva_applicable": {
-            "type": "boolean"
-          },
-          "requires_iva_breakdown": {
-            "type": "boolean"
-          }
-        }
+        "title": "ResolvedProfile",
+        "description": "The resolved DTE behavior derived from the Mandant's RUC profile."
       },
-      "GenerateXmlRequest": {
-        "type": "object",
-        "required": ["header", "items", "profile"],
+      "SubmitDteRequest": {
         "properties": {
           "header": {
-            "type": "object"
+            "$ref": "#/components/schemas/DteHeaderInput"
           },
           "items": {
-            "type": "array",
             "items": {
-              "type": "object"
-            }
+              "$ref": "#/components/schemas/DteItemInput"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items"
           },
           "profile": {
             "$ref": "#/components/schemas/MandantRucProfile"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "custom_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Data"
           }
-        }
+        },
+        "type": "object",
+        "required": [
+          "header",
+          "items",
+          "profile"
+        ],
+        "title": "SubmitDteRequest",
+        "description": "Request payload for generating and transmitting a SIFEN DTE with persistent outbox fallback."
+      },
+      "TaxRegime": {
+        "type": "string",
+        "enum": [
+          "IRE_GENERAL",
+          "IRE_SIMPLE",
+          "IRE_RESIMPLE"
+        ],
+        "title": "TaxRegime",
+        "description": "Paraguayan corporate and small-business income tax regimes."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

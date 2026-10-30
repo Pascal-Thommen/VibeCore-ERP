@@ -134,28 +134,6 @@ class PaymentResponse(BaseModel):
     custom_data: dict[str, Any] | None = None
 
 
-class HarmonizedCoreEvent(BaseModel):
-    """Event schema published for VibeCore Finance Core consumption."""
-    model_config = ConfigDict(extra="ignore")
-
-    event: str = Field(description="'payment.succeeded' or 'payment.failed'")
-    gateway: str = "stripe"
-    order_id: str
-    payment_id: str
-    session_id: str | None = None
-    amount: float
-    currency: str
-    amount_in_cents: int
-    status: str
-    paid_at: str | None = None
-    payment_method: str | None = None
-    receipt_url: str | None = None
-    failure_reason: str | None = None
-    customer_email: str | None = None
-    meta: dict[str, Any] | None = None
-    custom_data: dict[str, Any] | None = None
-
-
 class SyncPaymentResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
