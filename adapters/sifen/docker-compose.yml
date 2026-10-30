@@ -1,0 +1,26 @@
+services:
+  sifen-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-sifen-adapter
+    restart: unless-stopped
+    ports:
+      - "${SIFEN_PORT:-8006}:8000"
+    environment:
+      - SIFEN_ENV=${SIFEN_ENV:-sandbox}
+      - DATABASE_URL=sqlite:////data/sifen_outbox.db
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-10.0}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    volumes:
+      - sifen_data:/data
+
+volumes:
+  sifen_data:

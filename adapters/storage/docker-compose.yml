@@ -6,19 +6,25 @@ services:
     container_name: vibecore-storage-adapter
     restart: unless-stopped
     ports:
-      - "8003:8003"
+      - "${STORAGE_PORT:-8003}:8003"
     environment:
-      - STORAGE_ENDPOINT_URL=http://minio:9000
-      - STORAGE_PUBLIC_ENDPOINT_URL=http://localhost:9000
-      - STORAGE_ACCESS_KEY=minioadmin
-      - STORAGE_SECRET_KEY=minioadmin
-      - STORAGE_BUCKET=vibecore-documents
-      - STORAGE_REGION=us-east-1
-      - STORAGE_ADDRESSING_STYLE=path
-      - STORAGE_MAX_UPLOAD_SIZE_BYTES=52428800
-      - STORAGE_CONNECT_TIMEOUT=5.0
-      - STORAGE_READ_TIMEOUT=30.0
-      - STORAGE_MAX_RETRIES=3
+      - STORAGE_ENDPOINT_URL=${STORAGE_ENDPOINT_URL:-http://minio:9000}
+      - STORAGE_PUBLIC_ENDPOINT_URL=${STORAGE_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY:-minioadmin}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY:-minioadmin}
+      - STORAGE_BUCKET=${STORAGE_BUCKET:-vibecore-documents}
+      - STORAGE_REGION=${STORAGE_REGION:-us-east-1}
+      - STORAGE_ADDRESSING_STYLE=${STORAGE_ADDRESSING_STYLE:-path}
+      - STORAGE_MAX_UPLOAD_SIZE_BYTES=${STORAGE_MAX_UPLOAD_SIZE_BYTES:-52428800}
+      - STORAGE_CONNECT_TIMEOUT=${STORAGE_CONNECT_TIMEOUT:-5.0}
+      - STORAGE_READ_TIMEOUT=${STORAGE_READ_TIMEOUT:-30.0}
+      - STORAGE_MAX_RETRIES=${STORAGE_MAX_RETRIES:-3}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     depends_on:
       minio:
         condition: service_healthy
@@ -31,8 +37,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${STORAGE_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${STORAGE_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]

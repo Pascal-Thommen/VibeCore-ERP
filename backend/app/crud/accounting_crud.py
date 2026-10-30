@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -147,15 +147,6 @@ async def _line_values(
     }
 
 
-async def _next_line_number(session: AsyncSession, journal_entry_id: UUID) -> int:
-    maximum = await session.scalar(
-        select(func.max(JournalLine.line_number)).where(
-            JournalLine.journal_entry_id == journal_entry_id
-        )
-    )
-    return int(maximum or 0) + 1
-
-
 async def create_journal_entry(session: AsyncSession, data: JournalEntryCreate) -> JournalEntry:
     entry_values = _schema_values(data)
     line_data = entry_values.pop("lines")
@@ -217,65 +208,6 @@ async def delete_journal_entry(session: AsyncSession, journal_entry_id: UUID) ->
         return False
     _assert_draft(journal_entry)
     await session.delete(journal_entry)
-    await session.commit()
-    return True
-
-
-async def get_journal_line(session: AsyncSession, journal_line_id: UUID) -> JournalLine | None:
-    return await session.get(JournalLine, journal_line_id)
-
-
-async def add_journal_line(
-    session: AsyncSession, journal_entry_id: UUID, data: JournalLineCreate
-) -> JournalLine | None:
-    journal_entry = await get_journal_entry(session, journal_entry_id)
-    if journal_entry is None:
-        return None
-    _assert_draft(journal_entry)
-    values = await _line_values(session, data=data, exchange_rate=journal_entry.exchange_rate)
-    journal_line = JournalLine(
-        journal_entry_id=journal_entry.id,
-        line_number=await _next_line_number(session, journal_entry.id),
-        **values,
-    )
-    session.add(journal_line)
-    await session.commit()
-    await session.refresh(journal_line)
-    return journal_line
-
-
-async def update_journal_line(
-    session: AsyncSession, journal_line_id: UUID, data: JournalLineUpdate
-) -> JournalLine | None:
-    journal_line = await get_journal_line(session, journal_line_id)
-    if journal_line is None:
-        return None
-    journal_entry = await get_journal_entry(session, journal_line.journal_entry_id)
-    if journal_entry is None:
-        raise RelatedResourceNotFoundError("journal entry")
-    _assert_draft(journal_entry)
-    values = await _line_values(
-        session,
-        data=data,
-        exchange_rate=journal_entry.exchange_rate,
-        existing=journal_line,
-    )
-    for field, value in values.items():
-        setattr(journal_line, field, value)
-    await session.commit()
-    await session.refresh(journal_line)
-    return journal_line
-
-
-async def delete_journal_line(session: AsyncSession, journal_line_id: UUID) -> bool:
-    journal_line = await get_journal_line(session, journal_line_id)
-    if journal_line is None:
-        return False
-    journal_entry = await get_journal_entry(session, journal_line.journal_entry_id)
-    if journal_entry is None:
-        raise RelatedResourceNotFoundError("journal entry")
-    _assert_draft(journal_entry)
-    await session.delete(journal_line)
     await session.commit()
     return True
 

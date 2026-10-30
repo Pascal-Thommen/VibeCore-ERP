@@ -17,7 +17,6 @@ from stripe_adapter.main import create_app
 from stripe_adapter.service import StripePaymentService
 
 TEST_SECRET_KEY = "sk_test_testsecretkey9999"
-TEST_PUBLISHABLE_KEY = "pk_test_testpubkey8888"
 TEST_WEBHOOK_SECRET = "whsec_testwebhooksecret7777"
 
 
@@ -25,7 +24,6 @@ TEST_WEBHOOK_SECRET = "whsec_testwebhooksecret7777"
 def test_settings() -> Settings:
     return Settings(
         stripe_secret_key=TEST_SECRET_KEY,
-        stripe_publishable_key=TEST_PUBLISHABLE_KEY,
         stripe_webhook_secret=TEST_WEBHOOK_SECRET,
         stripe_default_currency="USD",
         stripe_env="sandbox",

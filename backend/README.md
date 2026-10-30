@@ -51,11 +51,12 @@ backend/
 ├── app/
 │   ├── api/                 # HTTP boundary
 │   ├── core/                # Configuration and shared financial primitives
-│   └── db/                  # SQLAlchemy base and session boundary
-├── core/                    # Future protected financial-domain modules
-├── shell/                   # Future client-specific Shell-domain modules
+│   ├── crud/                # Persistence and financial domain operations
+│   ├── db/                  # SQLAlchemy base and session boundary
+│   ├── models/              # Protected Core SQLAlchemy models
+│   └── schemas/             # Strict Pydantic v2 request/response schemas
 ├── migrations/              # Alembic environment and revisions
-├── tests/                   # Backend tests
+├── tests/                   # Backend and 4-pillars tests
 ├── Dockerfile
 ├── docker-compose.yml
 └── pyproject.toml

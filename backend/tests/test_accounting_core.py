@@ -107,7 +107,10 @@ def test_journal_routes_and_database_invariants_are_registered() -> None:
         app.openapi().get("paths", {}).keys()
     )
     assert "/api/v1/journal-entries" in paths
+    assert "/api/v1/journal-entries/{journal_entry_id}/submit" in paths
     assert "/api/v1/journal-entries/{journal_entry_id}/post" in paths
+    assert "/api/v1/journal-entries/lines/{journal_line_id}" not in paths
+    assert "/api/v1/journal-entries/{journal_entry_id}/lines" not in paths
 
     migration = Path("migrations/versions/20260915_0003_create_double_entry_accounting.py")
     migration_source = migration.read_text()

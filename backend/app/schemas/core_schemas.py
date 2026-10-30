@@ -74,15 +74,23 @@ EstablishmentCode = Annotated[str, StringConstraints(strict=True, pattern=r"^\d{
 PointOfIssueCode = Annotated[str, StringConstraints(strict=True, pattern=r"^\d{3}$")]
 SifenDocumentType = Annotated[str, StringConstraints(strict=True, pattern=r"^\d{2}$")]
 SifenEmissionType = Annotated[str, StringConstraints(strict=True, pattern=r"^\d$")]
+def _reject_all_zero_digits(value: Any) -> Any:
+    if isinstance(value, str) and value.isdigit() and int(value) == 0:
+        raise ValueError("SIFEN number or security code cannot be all zeros")
+    return value
+
+
 SifenDocumentNumber = Annotated[
     str,
-    StringConstraints(strict=True, pattern=r"^(?!0000000)\d{7}$"),
+    StringConstraints(strict=True, pattern=r"^\d{7}$"),
+    BeforeValidator(_reject_all_zero_digits),
 ]
 SifenSeries = Annotated[str, StringConstraints(strict=True, pattern=r"^(?:|[A-Z]{2})$")]
 SifenCdc = Annotated[str, StringConstraints(strict=True, pattern=r"^\d{44}$")]
 SifenSecurityCode = Annotated[
     str,
-    StringConstraints(strict=True, pattern=r"^(?!000000000)\d{9}$"),
+    StringConstraints(strict=True, pattern=r"^\d{9}$"),
+    BeforeValidator(_reject_all_zero_digits),
 ]
 
 AccountType = Literal[
