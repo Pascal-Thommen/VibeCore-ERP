@@ -43,7 +43,10 @@ def test_login_endpoint_json_negotiation(client):
 
 def test_callback_and_session_lifecycle(client, rsa_keypair, test_settings, make_google_id_token):
     # 1. Initiate login to obtain real signed state
-    login_res = client.get("/auth/google/login", headers={"Accept": "application/json"})
+    login_res = client.get(
+        "/auth/google/login?redirect_after_login=http://localhost:3000/dashboard",
+        headers={"Accept": "application/json"},
+    )
     assert login_res.status_code == 200
     state = login_res.json()["state"]
     cookie_state = login_res.cookies.get("vibecore_oauth_state")
@@ -82,6 +85,7 @@ def test_callback_and_session_lifecycle(client, rsa_keypair, test_settings, make
         assert token_data["user"]["email"] == "pascal@vibecore.org"
         assert "ADMIN" in token_data["user"]["roles"]
         assert "ACCOUNTANT" in token_data["user"]["roles"]
+        assert token_data["meta"] == {"redirect_after_login": "http://localhost:3000/dashboard"}
 
         # Ensure state cookie was cleared
         assert "vibecore_oauth_state" not in callback_res.cookies

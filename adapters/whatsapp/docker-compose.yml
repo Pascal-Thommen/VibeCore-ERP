@@ -1,0 +1,20 @@
+services:
+  vibecore-whatsapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibecore-whatsapp-adapter
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      - WHATSAPP_META_PHONE_NUMBER_ID=${WHATSAPP_META_PHONE_NUMBER_ID:-106540352242522}
+      - WHATSAPP_META_ACCESS_TOKEN=${WHATSAPP_META_ACCESS_TOKEN}
+      - WHATSAPP_META_APP_SECRET=${WHATSAPP_META_APP_SECRET}
+      - WHATSAPP_META_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_META_WEBHOOK_VERIFY_TOKEN}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

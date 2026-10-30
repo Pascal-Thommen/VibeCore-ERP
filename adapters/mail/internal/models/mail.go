@@ -67,6 +67,8 @@ type SendMailRequest struct {
 	Headers      map[string]string `json:"headers,omitempty"`
 	Tags         []string          `json:"tags,omitempty"`
 	Metadata     map[string]any    `json:"metadata,omitempty"`
+	Meta         map[string]any    `json:"meta,omitempty"`
+	CustomData   map[string]any    `json:"custom_data,omitempty"`
 }
 
 // Validate validates the outgoing mail request.
@@ -119,4 +121,6 @@ type InboundMail struct {
 	Headers     map[string]string `json:"headers,omitempty"`
 	RawMIME     string            `json:"raw_mime,omitempty"`
 	ReceivedAt  time.Time         `json:"received_at"`
+	Meta        map[string]any    `json:"meta,omitempty"`
+	CustomData  map[string]any    `json:"custom_data,omitempty"`
 }

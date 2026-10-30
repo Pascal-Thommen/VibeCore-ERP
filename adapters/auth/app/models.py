@@ -39,6 +39,7 @@ class LoginInitiationResponse(BaseModel):
     )
     state: str = Field(..., description="Cryptographic CSRF state parameter")
     meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")
 
 
 class HealthResponse(BaseModel):
@@ -52,6 +53,7 @@ class HealthResponse(BaseModel):
     )
     timestamp: str = Field(..., description="ISO 8601 current timestamp")
     meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")
 
 
 class ReadinessResponse(BaseModel):
@@ -60,15 +62,25 @@ class ReadinessResponse(BaseModel):
     status: str = Field(default="ready", description="Service readiness state")
     checks: dict[str, bool] = Field(..., description="Status of individual readiness checks")
     timestamp: str = Field(..., description="ISO 8601 current timestamp")
+    meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")
 
 
 class LogoutResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     status: str = Field(default="logged_out", description="Logout confirmation")
     message: str = Field(default="Erfolgreich abgemeldet.", description="Human readable message")
+    meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")
 
 
 class ErrorResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     error: str = Field(..., description="Machine-readable error code")
     message: str = Field(..., description="Human-readable error description")
     detail: str | None = Field(None, description="Technical detail or context")
     trace_id: str | None = Field(None, description="Correlation Trace ID")
+    meta: dict[str, Any] | None = Field(default=None, description="Extensible metadata")
+    custom_data: dict[str, Any] | None = Field(default=None, description="Extensible custom data")

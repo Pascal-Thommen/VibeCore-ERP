@@ -30,14 +30,18 @@ class VibeCoreSessionManager:
 
     def map_roles(self, email: str) -> list[str]:
         """
-        Maps Google email to VibeCore ERP roles.
+        Maps Google email to VibeCore ERP roles per ADR 0004.
         Administrators receive ADMIN and ACCOUNTANT roles.
+        System agents receive SYSTEM_AGENT role.
         Standard users receive the configured default role.
         """
         clean_email = email.strip().lower()
         admins = [a.strip().lower() for a in self.settings.admin_emails]
         if clean_email in admins:
             return ["ADMIN", "ACCOUNTANT"]
+        agents = [a.strip().lower() for a in self.settings.system_agent_emails]
+        if clean_email in agents:
+            return ["SYSTEM_AGENT"]
         return [self.settings.default_role]
 
     def create_user_info_from_google(self, google_claims: dict[str, Any]) -> UserInfo:
