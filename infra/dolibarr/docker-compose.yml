@@ -1,0 +1,78 @@
+name: vibecore-dolibarr
+
+services:
+  dolibarr-db:
+    image: mariadb:11
+    container_name: vibecore-dolibarr-db
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-allowed-packet=64M
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DOLI_DB_ROOT_PASSWORD:-dolibarr_root_pass_2026}
+      MARIADB_DATABASE: ${DOLI_DB_NAME:-dolibarr}
+      MARIADB_USER: ${DOLI_DB_USER:-dolibarr}
+      MARIADB_PASSWORD: ${DOLI_DB_PASSWORD:-dolibarr_db_pass_2026}
+    volumes:
+      - dolibarr_db_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "healthcheck.sh --connect --innodb_initialized || mariadb-admin ping -h 127.0.0.1 -u$$MARIADB_USER -p$$MARIADB_PASSWORD --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  dolibarr-web:
+    image: dolibarr/dolibarr:latest
+    container_name: vibecore-dolibarr-web
+    restart: unless-stopped
+    depends_on:
+      dolibarr-db:
+        condition: service_healthy
+    ports:
+      - "${DOLI_HTTP_PORT:-8090}:80"
+    environment:
+      DOLI_DB_TYPE: mysqli
+      DOLI_DB_HOST: dolibarr-db
+      DOLI_DB_HOST_PORT: "3306"
+      DOLI_DB_NAME: ${DOLI_DB_NAME:-dolibarr}
+      DOLI_DB_USER: ${DOLI_DB_USER:-dolibarr}
+      DOLI_DB_PASSWORD: ${DOLI_DB_PASSWORD:-dolibarr_db_pass_2026}
+      DOLI_URL_ROOT: ${DOLI_URL_ROOT:-http://localhost:8090}
+      DOLI_INSTALL_AUTO: "1"
+      DOLI_PROD: "1"
+      DOLI_ADMIN_LOGIN: ${DOLI_ADMIN_LOGIN:-admin}
+      DOLI_ADMIN_PASSWORD: ${DOLI_ADMIN_PASSWORD:-OroKui2026!Admin}
+      DOLI_API_KEY: ${DOLI_API_KEY:-orokui-dolibarr-api-key-2026}
+      DOLI_COMPANY_NAME: ${DOLI_COMPANY_NAME:-Oro Ku'i (UPA Extension)}
+      DOLI_COMPANY_COUNTRYCODE: ${DOLI_COMPANY_COUNTRYCODE:-PY}
+      DOLI_ENABLE_MODULES: ${DOLI_ENABLE_MODULES:-Societe,Product,Service,ProductBatch,Stock,StockTransfer,Bom,Mrp,Workstation,Propale,Commande,Expedition,Facture,Fournisseur,SupplierOrder,SupplierInvoice,Reception,Tax,Banque,Accounting,TakePos,Barcode,Categorie,MultiCurrency,Api,Webhook,Import,Export}
+      PHP_INI_DATE_TIMEZONE: ${PHP_INI_DATE_TIMEZONE:-America/Asuncion}
+      PHP_INI_MEMORY_LIMIT: ${PHP_INI_MEMORY_LIMIT:-512M}
+    volumes:
+      - dolibarr_documents:/var/www/documents
+      - dolibarr_custom:/var/www/html/custom
+      - ./scripts/before-starting.d:/var/www/scripts/before-starting.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS --max-time 5 -H \"DOLAPIKEY: $${DOLI_API_KEY}\" http://127.0.0.1:80/api/index.php/status >/dev/null && curl -fsS --max-time 5 http://127.0.0.1:80/ >/dev/null",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  dolibarr_db_data:
+    name: vibecore_dolibarr_db_data
+  dolibarr_documents:
+    name: vibecore_dolibarr_documents
+  dolibarr_custom:
+    name: vibecore_dolibarr_custom
