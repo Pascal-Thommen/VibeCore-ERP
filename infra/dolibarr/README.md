@@ -14,6 +14,8 @@ Persistenter Docker Compose Stack fuer **Dolibarr ERP (v24.0.2)** mit **MariaDB 
 | **Admin Benutzername** | `admin` |
 | **Admin Passwort** | `OroKui2026!Admin` |
 | **REST API Key (`DOLAPIKEY`)** | `orokui-dolibarr-api-key-2026` |
+| **MCP Server (stdio CLI)** | `infra/dolibarr/mcp/server.py` / `dolibarr-mcp` |
+| **MCP Server (SSE / HTTP)** | `http://localhost:8091/sse` (`http://localhost:8091/health`) |
 | **MariaDB Datenbank / User** | `dolibarr` / `dolibarr` |
 | **MariaDB Passwort** | `dolibarr_db_pass_2026` |
 
