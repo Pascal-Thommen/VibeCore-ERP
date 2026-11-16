@@ -69,6 +69,32 @@ services:
       retries: 10
       start_period: 30s
 
+  dolibarr-mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: vibecore-dolibarr-mcp
+    restart: unless-stopped
+    depends_on:
+      dolibarr-web:
+        condition: service_healthy
+    ports:
+      - "${DOLI_MCP_PORT:-8091}:8091"
+    environment:
+      DOLIBARR_API_URL: http://dolibarr-web:80/api/index.php
+      DOLIBARR_API_KEY: ${DOLI_API_KEY:-orokui-dolibarr-api-key-2026}
+      DOLIBARR_API_TIMEOUT: "10.0"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5)\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   dolibarr_db_data:
     name: vibecore_dolibarr_db_data

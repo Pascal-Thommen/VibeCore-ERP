@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orokui-dolibarr-mcp"
+version = "1.0.0"
+description = "Local Model Context Protocol (MCP) Server for Dolibarr ERP (Oro Ku'i / UPA Extension)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "mcp>=1.2.0",
+]
+
+[project.scripts]
+dolibarr-mcp = "dolibarr_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dolibarr_mcp*"]
