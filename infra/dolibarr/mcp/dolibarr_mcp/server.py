@@ -41,11 +41,7 @@ def get_client() -> DolibarrClient:
     """Return the configured DolibarrClient instance."""
     global _ACTIVE_CLIENT
     if _ACTIVE_CLIENT is None:
-        _ACTIVE_CLIENT = DolibarrClient(
-            base_url=DEFAULT_DOLIBARR_API_URL,
-            api_key=DEFAULT_DOLIBARR_API_KEY,
-            timeout=DEFAULT_TIMEOUT_SECONDS,
-        )
+        _ACTIVE_CLIENT = DolibarrClient()
     return _ACTIVE_CLIENT
 
 
@@ -334,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--api-key",
         default=None,
-        help="Override Dolibarr API Key (DOLAPIKEY)",
+        help=f"Override Dolibarr API Key (default: {DEFAULT_DOLIBARR_API_KEY})",
     )
     parser.add_argument(
         "--timeout",
